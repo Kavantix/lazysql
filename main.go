@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 	"github.com/jroimartin/gocui"
 )
 
@@ -30,16 +32,28 @@ func databases(db *sql.DB) []string {
 }
 
 func main() {
+	err := godotenv.Load()
+	checkErr(err)
+
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	checkErr(err)
 	defer g.Close()
 
-	hostname := "192.168.99.100"
-	port := 3306
-	user := "root"
-	password := ""
+	hostname, hasHostname := os.LookupEnv("HOSTNAME")
+	if !hasHostname {
+		hostname = "localhost"
+	}
+	port, hasPort := os.LookupEnv("PORT")
+	if !hasPort {
+		port = "3306"
+	}
+	user, hasUser := os.LookupEnv("DBUSER")
+	if !hasUser {
+		panic("No user specified")
+	}
+	password := os.Getenv("PASSWORD")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, hostname, port)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, hostname, port)
 
 	db, err := sql.Open("mysql", dsn)
 	checkErr(err)
