@@ -1,18 +1,50 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jroimartin/gocui"
 )
 
-func main() {
-	g, err := gocui.NewGui(gocui.OutputNormal)
+func checkErr(err error) {
 	if err != nil {
 		log.Panicln(err)
 	}
+}
+
+func databases(db *sql.DB) []string {
+	databases := []string{}
+	rows, err := db.Query("Show databases")
+	checkErr(err)
+	index := 0
+	for rows.Next() {
+		databases = append(databases, "")
+		err := rows.Scan(&databases[index])
+		checkErr(err)
+		index += 1
+	}
+	return databases
+}
+
+func main() {
+	g, err := gocui.NewGui(gocui.OutputNormal)
+	checkErr(err)
 	defer g.Close()
+
+	hostname := "192.168.99.100"
+	port := 3306
+	user := "root"
+	password := ""
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, hostname, port)
+
+	db, err := sql.Open("mysql", dsn)
+	checkErr(err)
+
+	fmt.Println(databases(db))
 
 	g.SetManagerFunc(layout)
 
