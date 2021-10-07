@@ -17,7 +17,7 @@ func checkErr(err error) {
 	}
 }
 
-func databases(db *sql.DB) []string {
+func showDatabases(db *sql.DB) []string {
 	databases := []string{}
 	rows, err := db.Query("Show databases")
 	checkErr(err)
@@ -31,6 +31,27 @@ func databases(db *sql.DB) []string {
 	return databases
 }
 
+func showTables(db *sql.DB, dbname string) []string {
+	databases := []string{}
+	_, err := db.Exec(fmt.Sprintf("use %s", dbname))
+	checkErr(err)
+	rows, err := db.Query("Show tables")
+	checkErr(err)
+	index := 0
+	for rows.Next() {
+		databases = append(databases, "")
+		err := rows.Scan(&databases[index])
+		checkErr(err)
+		index += 1
+	}
+	return databases
+}
+
+var db *sql.DB
+var databases []string
+var selectedDatabase string
+var tables []string
+
 func main() {
 	err := godotenv.Load()
 	checkErr(err)
@@ -38,6 +59,7 @@ func main() {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	checkErr(err)
 	defer g.Close()
+	g.Mouse = true
 
 	hostname, hasHostname := os.LookupEnv("HOSTNAME")
 	if !hasHostname {
@@ -55,10 +77,10 @@ func main() {
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, hostname, port)
 
-	db, err := sql.Open("mysql", dsn)
+	db, err = sql.Open("mysql", dsn)
 	checkErr(err)
 
-	fmt.Println(databases(db))
+	databases = showDatabases(db)
 
 	g.SetManagerFunc(layout)
 
@@ -70,6 +92,18 @@ func main() {
 		log.Panicln(err)
 	}
 
+	if err := g.SetKeybinding("", gocui.MouseWheelUp, gocui.ModNone, scrollUp); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding("", gocui.MouseWheelDown, gocui.ModNone, scrollDown); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding("", gocui.MouseLeft, gocui.ModNone, click); err != nil {
+		log.Panicln(err)
+	}
+
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
@@ -77,12 +111,77 @@ func main() {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	if v, err := g.SetView("hello", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2); err != nil {
+	if dbView, err := g.SetView("Databases", 0, 0, maxX/3-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		fmt.Fprintln(v, "Hello world!")
+		dbView.Title = dbView.Name()
+		if err := g.SetKeybinding("", gocui.MouseLeft, gocui.ModNone, selectDatabase); err != nil {
+			log.Panicln(err)
+		}
+		for _, db := range databases {
+			fmt.Fprintln(dbView, db)
+		}
 	}
+	if tablesView, err := g.SetView("Tables", maxX/3, 0, maxX/3*2-1, maxY-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		if selectedDatabase != "" {
+			fmt.Fprintln(tablesView, selectedDatabase)
+		} else {
+			fmt.Fprintln(tablesView, "Hello")
+		}
+	}
+	tablesView, _ := g.View("Tables")
+	if selectedDatabase != "" {
+		tablesView.Clear()
+		tablesView.Title = selectedDatabase
+		for _, table := range tables {
+			fmt.Fprintln(tablesView, table)
+		}
+	} else {
+		tablesView.Title = "Tables"
+		tablesView.Clear()
+	}
+	return nil
+}
+
+func selectDatabase(g *gocui.Gui, v *gocui.View) error {
+	_, y := v.Cursor()
+	databases := v.BufferLines()
+	if y >= len(databases) {
+		return nil
+	}
+	dbname := databases[y]
+	if dbname == "" {
+		return nil
+	}
+	if selectedDatabase != dbname {
+		selectedDatabase = dbname
+		go func() {
+			tables = showTables(db, dbname)
+			g.Update(func(g *gocui.Gui) error {
+				return nil
+			})
+		}()
+	}
+	return nil
+}
+
+func click(g *gocui.Gui, v *gocui.View) error {
+	return nil
+}
+
+func scrollDown(g *gocui.Gui, v *gocui.View) error {
+	x, y := v.Origin()
+	v.SetOrigin(x, y+1)
+	return nil
+}
+
+func scrollUp(g *gocui.Gui, v *gocui.View) error {
+	x, y := v.Origin()
+	v.SetOrigin(x, y-1)
 	return nil
 }
 
