@@ -50,7 +50,7 @@ func showTables(db *sql.DB, dbname string) []string {
 
 func selectData(db *sql.DB, tableName string) [][]string {
 	values := [][]string{}
-	rows, err := db.Query(fmt.Sprintf("select * from %s limit 100", tableName))
+	rows, err := db.Query(fmt.Sprintf("select * from %s limit 1000", tableName))
 	checkErr(err)
 	index := 0
 	columnNames, err = rows.Columns()
@@ -200,7 +200,9 @@ func layout(g *gocui.Gui) error {
 }
 
 func selectDatabase(g *gocui.Gui, v *gocui.View) error {
+	_, originY := v.Origin()
 	_, y := v.Cursor()
+	y += originY
 	databases := v.BufferLines()
 	if y >= len(databases) {
 		return nil
@@ -214,6 +216,8 @@ func selectDatabase(g *gocui.Gui, v *gocui.View) error {
 		go func() {
 			tables = showTables(db, dbname)
 			g.Update(func(g *gocui.Gui) error {
+				v, _ := g.View("Tables")
+				v.SetOrigin(0, 0)
 				return nil
 			})
 		}()
@@ -222,7 +226,9 @@ func selectDatabase(g *gocui.Gui, v *gocui.View) error {
 }
 
 func selectTable(g *gocui.Gui, v *gocui.View) error {
+	_, originY := v.Origin()
 	_, y := v.Cursor()
+	y += originY
 	tables := v.BufferLines()
 	if y >= len(tables) {
 		return nil
@@ -234,8 +240,9 @@ func selectTable(g *gocui.Gui, v *gocui.View) error {
 	if selectedTable != table {
 		selectedTable = table
 		go func() {
-			// tables = showTables(db, dbname)
 			tableValues = selectData(db, selectedTable)
+			v, _ := g.View("Values")
+			v.SetOrigin(0, 0)
 			g.Update(func(g *gocui.Gui) error {
 				return nil
 			})
