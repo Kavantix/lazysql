@@ -34,7 +34,7 @@ func showDatabases(db *sql.DB) []string {
 
 func showTables(db *sql.DB, dbname string) []string {
 	databases := []string{}
-	_, err := db.Exec(fmt.Sprintf("use %s", dbname))
+	_, err := db.Exec(fmt.Sprintf("use `%s`", dbname))
 	checkErr(err)
 	rows, err := db.Query("Show tables")
 	checkErr(err)
@@ -50,7 +50,7 @@ func showTables(db *sql.DB, dbname string) []string {
 
 func selectData(db *sql.DB, tableName string) [][]string {
 	values := [][]string{}
-	rows, err := db.Query(fmt.Sprintf("select * from %s limit 1000", tableName))
+	rows, err := db.Query(fmt.Sprintf("select * from `%s` limit 1000", tableName))
 	checkErr(err)
 	index := 0
 	columnNames, err = rows.Columns()
@@ -66,7 +66,7 @@ func selectData(db *sql.DB, tableName string) [][]string {
 		rowValues := make([]string, numColumns)
 		for i, column := range row {
 			if column.Valid {
-				rowValues[i] = strings.ReplaceAll(column.String, "\n", "\\n")
+				rowValues[i] = strings.ReplaceAll(strings.ReplaceAll(column.String, "\n", "\\n"), "\r", "")
 			} else {
 				rowValues[i] = "NULL"
 			}
