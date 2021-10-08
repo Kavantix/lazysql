@@ -146,7 +146,7 @@ func boldDarkBlue(text string) string {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	if dbView, err := g.SetView("Databases", 0, 0, maxX/3-1, maxY-1); err != nil {
+	if dbView, err := g.SetView("Databases", 0, 0, maxX/3-1, maxY/2-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -155,7 +155,7 @@ func layout(g *gocui.Gui) error {
 			log.Panicln(err)
 		}
 	}
-	if tablesView, err := g.SetView("Tables", maxX/3, 0, maxX/3*2-1, maxY-1); err != nil {
+	if tablesView, err := g.SetView("Tables", 0, maxY/2, maxX/3-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -163,7 +163,7 @@ func layout(g *gocui.Gui) error {
 			log.Panicln(err)
 		}
 	}
-	if _, err := g.SetView("Values", maxX/3*2, 0, maxX-1, maxY-1); err != nil {
+	if _, err := g.SetView("Values", maxX/3, 0, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
