@@ -90,7 +90,7 @@ func main() {
 	err := godotenv.Load()
 	checkErr(err)
 
-	g, err := gocui.NewGui(gocui.OutputNormal)
+	g, err := gocui.NewGui(gocui.Output256)
 	checkErr(err)
 	defer g.Close()
 	g.Mouse = true
@@ -139,6 +139,11 @@ func main() {
 	}
 }
 
+func boldDarkBlue(text string) string {
+	// choose color mode ; 256 color mode ; dark blue ; bold
+	return fmt.Sprintf("\x1b[38;5;32;1m%s\x1b[0m", text)
+}
+
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	if dbView, err := g.SetView("Databases", 0, 0, maxX/3-1, maxY-1); err != nil {
@@ -149,9 +154,6 @@ func layout(g *gocui.Gui) error {
 		if err := g.SetKeybinding(dbView.Name(), gocui.MouseLeft, gocui.ModNone, selectDatabase); err != nil {
 			log.Panicln(err)
 		}
-		for _, db := range databases {
-			fmt.Fprintln(dbView, db)
-		}
 	}
 	if tablesView, err := g.SetView("Tables", maxX/3, 0, maxX/3*2-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
@@ -161,12 +163,22 @@ func layout(g *gocui.Gui) error {
 			log.Panicln(err)
 		}
 	}
-	if valuesView, err := g.SetView("Values", maxX/3*2, 0, maxX-1, maxY-1); err != nil {
+	if _, err := g.SetView("Values", maxX/3*2, 0, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		if err := g.SetKeybinding(valuesView.Name(), gocui.MouseLeft, gocui.ModNone, selectTable); err != nil {
-			log.Panicln(err)
+	}
+	{
+		dbView, _ := g.View("Databases")
+		dbView.Clear()
+		_, originY := dbView.Origin()
+		_, sizeY := dbView.Size()
+		for i, db := range databases {
+			if db == selectedDatabase && i-originY >= 0 && i-originY < sizeY {
+				fmt.Fprintln(dbView, boldDarkBlue(db))
+			} else {
+				fmt.Fprintln(dbView, db)
+			}
 		}
 	}
 	{
@@ -174,8 +186,14 @@ func layout(g *gocui.Gui) error {
 		if selectedDatabase != "" {
 			tablesView.Clear()
 			tablesView.Title = selectedDatabase
-			for _, table := range tables {
-				fmt.Fprintln(tablesView, table)
+			_, originY := tablesView.Origin()
+			_, sizeY := tablesView.Size()
+			for i, table := range tables {
+				if table == selectedTable && i-originY >= 0 && i-originY < sizeY {
+					fmt.Fprintln(tablesView, boldDarkBlue(table))
+				} else {
+					fmt.Fprintln(tablesView, table)
+				}
 			}
 		} else {
 			tablesView.Clear()
@@ -239,6 +257,7 @@ func selectTable(g *gocui.Gui, v *gocui.View) error {
 	}
 	if selectedTable != table {
 		selectedTable = table
+		tableValues = [][]string{}
 		go func() {
 			tableValues = selectData(db, selectedTable)
 			v, _ := g.View("Values")
