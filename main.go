@@ -11,6 +11,7 @@ import (
 	"github.com/awesome-gocui/gocui"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"github.com/olekukonko/tablewriter"
 )
 
 var logFile *os.File
@@ -61,7 +62,7 @@ func showTables(db *sql.DB, dbname string) []string {
 
 func selectData(db *sql.DB, tableName string) [][]string {
 	values := [][]string{}
-	query = fmt.Sprintf("SELECT * FROM `%s` LIMIT 1000", tableName)
+	query = fmt.Sprintf("SELECT * FROM `%s` LIMIT 100", tableName)
 	rows, err := db.Query(query)
 	checkErr(err)
 	index := 0
@@ -276,11 +277,36 @@ func layout(g *gocui.Gui) error {
 		checkErr(err)
 		if selectedTable != "" {
 			ClearPreserveOrigin(valuesView)
-			valuesView.Title = selectedTable
-			fmt.Fprintln(valuesView, columnNames)
-			for _, row := range tableValues {
-				fmt.Fprintln(valuesView, row)
+			table := tablewriter.NewWriter(valuesView)
+			table.SetBorders(tablewriter.Border{
+				Bottom: true,
+				Right:  true,
+				Left:   true,
+				Top:    false,
+			})
+			table.SetHeader(columnNames)
+			table.SetAutoFormatHeaders(false)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			sx, _ := valuesView.Size()
+			var columnSize int
+			if len(columnNames) > 0 {
+				columnSize = Max(0, (sx-2-len(columnNames)-len(columnNames))/len(columnNames))
 			}
+			table.SetColWidth(columnSize)
+			alignments := make([]int, len(columnNames))
+			for i, _ := range columnNames {
+				table.SetColMinWidth(i, columnSize)
+				alignments[i] = tablewriter.ALIGN_LEFT
+			}
+			table.SetColumnAlignment(alignments)
+			table.SetAutoWrapText(false)
+			table.AppendBulk(tableValues)
+			table.Render()
+			// valuesView.Title = selectedTable
+			// fmt.Fprintln(valuesView, columnNames)
+			// for _, row := range tableValues {
+			// 	fmt.Fprintln(valuesView, row)
+			// }
 		} else {
 			valuesView.Clear()
 			valuesView.Title = "Values"
