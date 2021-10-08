@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"strings"
@@ -11,6 +12,16 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/jroimartin/gocui"
 )
+
+var logFile *os.File
+
+/// Log to a log.txt file
+func Log(text string) {
+	if logFile == nil {
+		logFile, _ = os.OpenFile("log.txt", os.O_WRONLY|os.O_TRUNC|os.O_CREATE|os.O_SYNC, fs.ModePerm)
+	}
+	fmt.Fprintln(logFile, text)
+}
 
 func checkErr(err error) {
 	if err != nil {
