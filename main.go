@@ -50,7 +50,8 @@ func showTables(db *sql.DB, dbname string) []string {
 
 func selectData(db *sql.DB, tableName string) [][]string {
 	values := [][]string{}
-	rows, err := db.Query(fmt.Sprintf("select * from `%s` limit 1000", tableName))
+	query = fmt.Sprintf("SELECT * FROM `%s` LIMIT 1000", tableName)
+	rows, err := db.Query(query)
 	checkErr(err)
 	index := 0
 	columnNames, err = rows.Columns()
@@ -78,6 +79,7 @@ func selectData(db *sql.DB, tableName string) [][]string {
 	return values
 }
 
+var query string
 var db *sql.DB
 var databases []string
 var selectedDatabase string
@@ -163,10 +165,16 @@ func layout(g *gocui.Gui) error {
 			log.Panicln(err)
 		}
 	}
-	if _, err := g.SetView("Values", maxX/3, 0, maxX-1, maxY-1); err != nil {
+	if _, err := g.SetView("Values", maxX/3, 3, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
+	}
+	if queryView, err := g.SetView("Query", maxX/3, 0, maxX-1, 2); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		queryView.Title = queryView.Name()
 	}
 	{
 		dbView, _ := g.View("Databases")
@@ -212,6 +220,15 @@ func layout(g *gocui.Gui) error {
 		} else {
 			valuesView.Clear()
 			valuesView.Title = "Values"
+		}
+	}
+	{
+		queryView, _ := g.View("Query")
+		if query != "" {
+			queryView.Clear()
+			fmt.Fprintln(queryView, query)
+		} else {
+			queryView.Clear()
 		}
 	}
 	return nil
