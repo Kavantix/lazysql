@@ -71,7 +71,7 @@ func selectData(db *sql.DB) [][]string {
 	columnNames, err = rows.Columns()
 	numColumns := len(columnNames)
 	checkErr(err)
-	for rows.Next() {
+	for rows.Next() && index < 200 {
 		row := make([]sql.NullString, numColumns)
 		scannableRow := make([]interface{}, numColumns)
 		for i, _ := range row {
@@ -90,6 +90,7 @@ func selectData(db *sql.DB) [][]string {
 		checkErr(err)
 		index += 1
 	}
+	rows.Close()
 	return values
 }
 
@@ -212,6 +213,10 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		if q.cursor < len(query) {
 			q.cursor += 1
 		}
+	case gocui.KeyDelete:
+		if len(query) > 0 && q.cursor < len(query) {
+			query = query[:q.cursor] + query[q.cursor+1:]
+		}
 	case gocui.KeyBackspace:
 	case gocui.KeyBackspace2:
 		if len(query) > 0 && q.cursor > 0 {
@@ -236,6 +241,8 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 				return nil
 			})
 		}()
+	case gocui.KeyEsc:
+		tablesPane.Select()
 	}
 	if key == 0 {
 		if q.cursor >= len(query) {
