@@ -97,10 +97,12 @@ func (p *Pane) limitCursor(cursor int) (newCursor int) {
 }
 
 func (p *Pane) onCursorDown(g *gocui.Gui, v *gocui.View) error {
+	p.Select()
 	p.cursor = p.limitCursor(p.cursor + 1)
 	return nil
 }
 func (p *Pane) onCursorUp(g *gocui.Gui, v *gocui.View) error {
+	p.Select()
 	p.cursor = p.limitCursor(p.cursor - 1)
 	return nil
 }

@@ -63,9 +63,8 @@ func showTables(db *sql.DB, dbname string) []string {
 	return databases
 }
 
-func selectData(db *sql.DB, tableName string) [][]string {
+func selectData(db *sql.DB) [][]string {
 	values := [][]string{}
-	query = fmt.Sprintf("SELECT * FROM `%s` LIMIT 100", tableName)
 	rows, err := db.Query(query)
 	checkErr(err)
 	index := 0
@@ -157,11 +156,19 @@ func main() {
 		log.Panicln(err)
 	}
 
+	if err := g.SetKeybinding("", 'c', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		g.SetCurrentView("Query")
+		return nil
+	}); err != nil {
+		log.Panicln(err)
+	}
+
 	databasesPane = NewPane(g, "Databases")
 	databasesPane.SetContent(databases)
 	databasesPane.OnSelectItem(onSelectDatabase(g))
 	databasesPane.Select()
 	// queryPane = NewPane(g, "Query")
+	queryEditor = &QueryEditor{g: g}
 	tablesPane = NewPane(g, "Tables")
 	tablesPane.OnSelectItem(onSelectTable(g))
 	// resultsPane = NewPane(g, "Results")
@@ -188,19 +195,74 @@ func boldDarkBlue(text string) string {
 
 var numLayouts = 0
 
+type QueryEditor struct {
+	g      *gocui.Gui
+	cursor int
+}
+
+var queryEditor *QueryEditor
+
+func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	switch key {
+	case gocui.KeyArrowLeft:
+		if q.cursor > 0 {
+			q.cursor -= 1
+		}
+	case gocui.KeyArrowRight:
+		if q.cursor < len(query) {
+			q.cursor += 1
+		}
+	case gocui.KeyBackspace:
+	case gocui.KeyBackspace2:
+		if len(query) > 0 && q.cursor > 0 {
+			query = query[:q.cursor-1] + query[q.cursor:]
+			q.cursor -= 1
+		}
+	case gocui.KeySpace:
+		if q.cursor >= len(query) {
+			query += " "
+		} else {
+			query = query[:q.cursor] + " " + query[q.cursor:]
+		}
+		q.cursor += 1
+	case gocui.KeyEnter:
+		tablesPane.Select()
+		go func() {
+			tableValues = selectData(db)
+			q.g.UpdateAsync(func(g *gocui.Gui) error {
+				v, _ := g.View("Values")
+				v.Clear()
+				redraw(g)
+				return nil
+			})
+		}()
+	}
+	if key == 0 {
+		if q.cursor >= len(query) {
+			query += string(ch)
+		} else {
+			query = query[:q.cursor] + string(ch) + query[q.cursor:]
+		}
+		q.cursor += 1
+	}
+}
+
 func layout(g *gocui.Gui) error {
 	numLayouts += 1
 	maxX, maxY := g.Size()
-	if _, err := g.SetView("Values", maxX/3, 3, maxX-1, maxY-2, 0); err != nil {
+	if _, err := g.SetView("Values", maxX/3, 7, maxX-1, maxY-2, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 	}
-	if queryView, err := g.SetView("Query", maxX/3, 0, maxX-2, 2, 0); err != nil {
+	if queryView, err := g.SetView("Query", maxX/3, 0, maxX-2, 6, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		queryView.Title = queryView.Name()
+		queryView.Editor = queryEditor
+		queryView.Editable = true
+
 	}
 	if footerView, err := g.SetView("Footer", -1, maxY-2, maxY, maxX, 0); err != nil {
 		if err != gocui.ErrUnknownView {
@@ -216,7 +278,7 @@ func layout(g *gocui.Gui) error {
 	{
 		valuesView, err := g.View("Values")
 		checkErr(err)
-		if selectedTable != "" {
+		if len(tableValues) > 0 {
 			ClearPreserveOrigin(valuesView)
 			table := tablewriter.NewWriter(valuesView)
 			table.SetBorders(tablewriter.Border{
@@ -255,6 +317,7 @@ func layout(g *gocui.Gui) error {
 	}
 	{
 		queryView, err := g.View("Query")
+		queryView.Wrap = true
 		checkErr(err)
 		if query != "" {
 			var err error
@@ -272,6 +335,12 @@ func layout(g *gocui.Gui) error {
 		} else {
 			queryView.Clear()
 		}
+	}
+	if g.CurrentView().Name() == "Query" {
+		g.Cursor = true
+		g.CurrentView().MoveCursor(queryEditor.cursor, 0)
+	} else {
+		g.Cursor = false
 	}
 	return nil
 }
@@ -323,7 +392,8 @@ func changeTable(g *gocui.Gui, table string) {
 		selectedTable = table
 		tableValues = [][]string{}
 		go func() {
-			tableValues = selectData(db, selectedTable)
+			query = fmt.Sprintf("SELECT * FROM `%s` LIMIT 100", selectedTable)
+			tableValues = selectData(db)
 			g.UpdateAsync(func(g *gocui.Gui) error {
 				v, _ := g.View("Values")
 				v.Clear()
