@@ -231,16 +231,26 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		}
 		q.cursor += 1
 	case gocui.KeyEnter:
-		tablesPane.Select()
-		go func() {
-			tableValues = selectData(db)
-			q.g.UpdateAsync(func(g *gocui.Gui) error {
-				v, _ := g.View("Values")
-				v.Clear()
-				redraw(g)
-				return nil
-			})
-		}()
+		query = strings.Trim(query, " \n")
+		if len(query) > 0 && query[len(query)-1:] == ";" {
+			tablesPane.Select()
+			go func() {
+				tableValues = selectData(db)
+				q.g.UpdateAsync(func(g *gocui.Gui) error {
+					v, _ := g.View("Values")
+					v.Clear()
+					redraw(g)
+					return nil
+				})
+			}()
+		} else {
+			if q.cursor >= len(query) {
+				query += "\n"
+			} else {
+				query = strings.Trim(query[:q.cursor], " \n") + "\n" + strings.Trim(query[q.cursor:], " \n")
+			}
+			q.cursor += 1
+		}
 	case gocui.KeyEsc:
 		tablesPane.Select()
 	}
@@ -251,6 +261,10 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 			query = query[:q.cursor] + string(ch) + query[q.cursor:]
 		}
 		q.cursor += 1
+	}
+	if q.cursor > len(query) {
+		q.cursor = len(query)
+
 	}
 }
 
@@ -345,7 +359,19 @@ func layout(g *gocui.Gui) error {
 	}
 	if g.CurrentView().Name() == "Query" {
 		g.Cursor = true
-		g.CurrentView().MoveCursor(queryEditor.cursor, 0)
+		lines := strings.Split(query, "\n")
+		line := lines[0]
+		cursor := queryEditor.cursor
+		row := 0
+		for cursor > len(line) {
+			cursor -= len(line) + 1
+			row += 1
+			if row >= len(lines) {
+				break
+			}
+			line = lines[row]
+		}
+		g.CurrentView().MoveCursor(cursor, row)
 	} else {
 		g.Cursor = false
 	}
