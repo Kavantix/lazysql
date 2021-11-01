@@ -213,6 +213,50 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		if q.cursor < len(query) {
 			q.cursor += 1
 		}
+	case gocui.KeyArrowDown:
+		if q.cursor < len(query) {
+			cx, cy := v.Cursor()
+			cy += 1
+			lines := strings.Split(query, "\n")
+			if cy <= len(lines) {
+				cursor := 0
+				i := 0
+				for cy > 0 {
+					cursor += len(lines[i]) + 1
+					i += 1
+					cy -= 1
+				}
+				if i < len(lines) {
+					if cx > len(lines[i]) {
+						cursor += len(lines[i])
+					} else {
+						cursor += cx
+					}
+				}
+				q.cursor = cursor
+			}
+		}
+	case gocui.KeyArrowUp:
+		if q.cursor > 0 {
+			cx, cy := v.Cursor()
+			cy -= 1
+			lines := strings.Split(query, "\n")
+			cursor := 0
+			i := 0
+			for cy > 0 {
+				cursor += len(lines[i]) + 1
+				i += 1
+				cy -= 1
+			}
+			if i < len(lines) {
+				if cx > len(lines[i]) {
+					cursor += len(lines[i])
+				} else {
+					cursor += cx
+				}
+			}
+			q.cursor = cursor
+		}
 	case gocui.KeyDelete:
 		if len(query) > 0 && q.cursor < len(query) {
 			query = query[:q.cursor] + query[q.cursor+1:]
@@ -280,6 +324,32 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
+		if err := g.SetKeybinding("", gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			if g.CurrentView().Name() != "Query" {
+				g.SetCurrentView("Query")
+			} else {
+				cx, cy := v.Cursor()
+				lines := strings.Split(query, "\n")
+				cursor := 0
+				i := 0
+				for cy > 0 {
+					if i >= len(lines) {
+						break
+					}
+					cursor += len(lines[i]) + 1
+					i += 1
+					cy -= 1
+				}
+				cursor += cx
+				if cursor > len(query) {
+					cursor = len(query)
+				}
+				queryEditor.cursor = cursor
+			}
+			return nil
+		}); err != nil {
+			log.Panicln(err)
+		}
 		queryView.Title = queryView.Name()
 		queryView.Editor = queryEditor
 		queryView.Editable = true
@@ -345,13 +415,13 @@ func layout(g *gocui.Gui) error {
 			ClearPreserveOrigin(queryView)
 			batCmd := exec.Command("bat", "-l", "sql", "-p", "--color", "always")
 			stdin, err := batCmd.StdinPipe()
-			fmt.Fprintln(stdin, query)
+			fmt.Fprint(stdin, query)
 			err = stdin.Close()
 			result, err := batCmd.Output()
 			if err == nil {
 				queryView.Write(result)
 			} else {
-				fmt.Fprintln(queryView, query)
+				fmt.Fprint(queryView, query)
 			}
 		} else {
 			queryView.Clear()
