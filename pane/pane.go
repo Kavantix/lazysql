@@ -50,7 +50,24 @@ func NewPane(g *gocui.Gui, name string) *Pane {
 		log.Panicln(err)
 	}
 
+	if err := g.SetKeybinding(name, gocui.MouseLeft, gocui.ModNone, p.onMouseLeft); err != nil {
+		log.Panicln(err)
+	}
+
 	return p
+}
+
+func (p *Pane) onMouseLeft(g *gocui.Gui, v *gocui.View) error {
+	p.Select()
+	_, cy := v.Cursor()
+	if cy == p.cursor {
+		if len(p.content) > 0 {
+			p.onSelectItem(p.content[p.cursor])
+		}
+	} else {
+		p.SetCursor(cy - p.scrollOffset)
+	}
+	return nil
 }
 
 func (p *Pane) SetCursor(cursor int) {
@@ -71,7 +88,7 @@ func (p *Pane) limitCursor(cursor int) (newCursor int) {
 		newCursor = cursor
 	}
 	_, sy := p.View.Size()
-	if newCursor-p.scrollOffset < 0 {
+	if newCursor-p.scrollOffset <= 0 {
 		p.scrollOffset = newCursor
 	} else if newCursor > sy+p.scrollOffset-1 {
 		p.scrollOffset = newCursor - sy + 1
@@ -118,6 +135,7 @@ func (p *Pane) Paint() {
 	for i := 0; i < sy && i+p.scrollOffset < len(p.content); i += 1 {
 		index := p.scrollOffset + i
 		item := p.content[index]
+		// fmt.Fprintf(p.View, "%d: ", index)
 		selected := p.g.CurrentView() == p.View && p.cursor == index
 		if selected {
 			fmt.Fprintln(p.View, bold(item))
