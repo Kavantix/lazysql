@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	. "github.com/Kavantix/lazysql/pane"
 	"io/fs"
 	"log"
 	"os"
@@ -79,7 +80,7 @@ func selectData(db *sql.DB, tableName string) [][]string {
 		rowValues := make([]string, numColumns)
 		for i, column := range row {
 			if column.Valid {
-				rowValues[i] = strings.ReplaceAll(strings.ReplaceAll(column.String, "\n", "\\n"), "\r", "")
+				rowValues[i] = strings.ReplaceAll(column.String, "\r", "")
 			} else {
 				rowValues[i] = "NULL"
 			}
@@ -101,6 +102,8 @@ var columnNames []string
 var tableValues [][]string
 
 var currentLine int
+
+var databasesPane, tablesPane, queryPane, resultsPane *Pane
 
 func main() {
 	err := godotenv.Load()
@@ -144,14 +147,6 @@ func main() {
 		log.Panicln(err)
 	}
 
-	if err := g.SetKeybinding("", 'j', gocui.ModNone, currentLineDown); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding("", 'k', gocui.ModNone, currentLineUp); err != nil {
-		log.Panicln(err)
-	}
-
 	if err := g.SetKeybinding("", 'l', gocui.ModNone, currentViewDown); err != nil {
 		log.Panicln(err)
 	}
@@ -160,17 +155,14 @@ func main() {
 		log.Panicln(err)
 	}
 
-	if err := g.SetKeybinding("", gocui.KeySpace, gocui.ModNone, currentLineSelect); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding("", gocui.MouseWheelUp, gocui.ModNone, scrollUp); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding("", gocui.MouseWheelDown, gocui.ModNone, scrollDown); err != nil {
-		log.Panicln(err)
-	}
+	databasesPane = NewPane(g, "Databases")
+	databasesPane.SetContent(databases)
+	databasesPane.OnSelectItem(onSelectDatabase(g))
+	databasesPane.Select()
+	// queryPane = NewPane(g, "Query")
+	tablesPane = NewPane(g, "Tables")
+	tablesPane.OnSelectItem(onSelectTable(g))
+	// resultsPane = NewPane(g, "Results")
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
@@ -197,81 +189,28 @@ var numLayouts = 0
 func layout(g *gocui.Gui) error {
 	numLayouts += 1
 	maxX, maxY := g.Size()
-	if dbView, err := g.SetView("Databases", 0, 0, maxX/3-1, maxY/2-1, 0); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		g.SetCurrentView(dbView.Name())
-		dbView.Title = dbView.Name()
-		if err := g.SetKeybinding(dbView.Name(), gocui.MouseLeft, gocui.ModNone, selectDatabase); err != nil {
-			log.Panicln(err)
-		}
-	}
-	if tablesView, err := g.SetView("Tables", 0, maxY/2, maxX/3-1, maxY-1, 0); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		if err := g.SetKeybinding(tablesView.Name(), gocui.MouseLeft, gocui.ModNone, selectTable); err != nil {
-			log.Panicln(err)
-		}
-	}
-	if _, err := g.SetView("Values", maxX/3, 3, maxX-1, maxY-1, 0); err != nil {
+	if _, err := g.SetView("Values", maxX/3, 3, maxX-1, maxY-2, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 	}
-	if queryView, err := g.SetView("Query", maxX/3, 0, maxX-1, 2, 0); err != nil {
+	if queryView, err := g.SetView("Query", maxX/3, 0, maxX-2, 2, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		queryView.Title = queryView.Name()
 	}
-	{
-		dbView, err := g.View("Databases")
-		checkErr(err)
-		ClearPreserveOrigin(dbView)
-		_, originY := dbView.Origin()
-		_, sizeY := dbView.Size()
-		for i, db := range databases {
-			currentDb := db == selectedDatabase && i-originY >= 0 && i-originY < sizeY
-			selected := g.CurrentView() == dbView && currentLine == i
-			if selected && currentDb {
-				fmt.Fprintln(dbView, boldDarkBlue(db))
-			} else if currentDb {
-				fmt.Fprintln(dbView, darkBlue(db))
-			} else if selected {
-				fmt.Fprintln(dbView, bold(db))
-			} else {
-				fmt.Fprintln(dbView, db)
-			}
+	if footerView, err := g.SetView("Footer", -1, maxY-2, maxY, maxX, 0); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
 		}
+		footerView.Frame = false
+		footerView.WriteString("Footer")
 	}
-	{
-		tablesView, err := g.View("Tables")
-		checkErr(err)
-		if selectedDatabase != "" {
-			ClearPreserveOrigin(tablesView)
-			tablesView.Title = selectedDatabase
-			_, originY := tablesView.Origin()
-			_, sizeY := tablesView.Size()
-			for i, table := range tables {
-				currentTable := table == selectedTable && i-originY >= 0 && i-originY < sizeY
-				selected := g.CurrentView() == tablesView && currentLine == i
-				if currentTable && selected {
-					fmt.Fprintln(tablesView, boldDarkBlue(table))
-				} else if currentTable {
-					fmt.Fprintln(tablesView, darkBlue(table))
-				} else if selected {
-					fmt.Fprintln(tablesView, bold(table))
-				} else {
-					fmt.Fprintln(tablesView, table)
-				}
-			}
-		} else {
-			tablesView.Clear()
-			tablesView.Title = "Tables"
-		}
-	}
+	databasesPane.Position(0, 0, maxX/3-1, maxY/2-1)
+	databasesPane.Paint()
+	tablesPane.Position(0, maxY/2, maxX/3-1, maxY/2-2)
+	tablesPane.Paint()
 	{
 		valuesView, err := g.View("Values")
 		checkErr(err)
@@ -287,15 +226,15 @@ func layout(g *gocui.Gui) error {
 			table.SetHeader(columnNames)
 			table.SetAutoFormatHeaders(false)
 			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-			sx, _ := valuesView.Size()
-			var columnSize int
+			// sx, _ := valuesView.Size()
+			// var columnSize int
 			if len(columnNames) > 0 {
-				columnSize = Max(0, (sx-2-len(columnNames)-len(columnNames))/len(columnNames))
+				// columnSize = Max(0, (sx-2-len(columnNames)-len(columnNames))/len(columnNames))
 			}
-			table.SetColWidth(columnSize)
+			// table.SetColWidth(columnSize)
 			alignments := make([]int, len(columnNames))
 			for i, _ := range columnNames {
-				table.SetColMinWidth(i, columnSize)
+				// table.SetColMinWidth(i, columnSize)
 				alignments[i] = tablewriter.ALIGN_LEFT
 			}
 			table.SetColumnAlignment(alignments)
@@ -325,17 +264,10 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-func selectDatabase(g *gocui.Gui, v *gocui.View) error {
-	_, originY := v.Origin()
-	_, y := v.Cursor()
-	y += originY
-	databases := v.BufferLines()
-	if y >= len(databases) {
-		return nil
+func onSelectDatabase(g *gocui.Gui) func(database string) {
+	return func(database string) {
+		changeDatabase(g, database)
 	}
-	dbname := databases[y]
-	changeDatabase(g, dbname)
-	return nil
 }
 
 func changeDatabase(g *gocui.Gui, dbname string) {
@@ -350,6 +282,8 @@ func changeDatabase(g *gocui.Gui, dbname string) {
 		// tablesView.Clear()
 		go func() {
 			newTables := showTables(db, dbname)
+			tablesPane.SetContent(newTables)
+			tablesPane.SetCursor(0)
 
 			g.UpdateAsync(func(g *gocui.Gui) error {
 				tables = newTables
@@ -363,17 +297,10 @@ func changeDatabase(g *gocui.Gui, dbname string) {
 	}
 }
 
-func selectTable(g *gocui.Gui, v *gocui.View) error {
-	_, originY := v.Origin()
-	_, y := v.Cursor()
-	y += originY
-	tables := v.BufferLines()
-	if y >= len(tables) {
-		return nil
+func onSelectTable(g *gocui.Gui) func(table string) {
+	return func(table string) {
+		changeTable(g, table)
 	}
-	table := tables[y]
-	changeTable(g, table)
-	return nil
 }
 
 func changeTable(g *gocui.Gui, table string) {
@@ -443,23 +370,21 @@ func currentLineSelect(g *gocui.Gui, v *gocui.View) error {
 
 func currentViewDown(g *gocui.Gui, v *gocui.View) error {
 	switch v.Name() {
-	case "Databases":
-		g.SetCurrentView("Tables")
-	case "Tables":
-		g.SetCurrentView("Databases")
+	case databasesPane.Name:
+		tablesPane.Select()
+	case tablesPane.Name:
+		databasesPane.Select()
 	}
-	currentLine = 0
 	return nil
 }
 
 func currentViewUp(g *gocui.Gui, v *gocui.View) error {
 	switch v.Name() {
-	case "Databases":
-		g.SetCurrentView("Tables")
-	case "Tables":
-		g.SetCurrentView("Databases")
+	case databasesPane.Name:
+		tablesPane.Select()
+	case tablesPane.Name:
+		databasesPane.Select()
 	}
-	currentLine = 0
 	return nil
 }
 
