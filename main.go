@@ -3,11 +3,13 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	. "github.com/Kavantix/lazysql/pane"
 	"io/fs"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
+
+	. "github.com/Kavantix/lazysql/pane"
 
 	"github.com/awesome-gocui/gocui"
 	_ "github.com/go-sql-driver/mysql"
@@ -255,8 +257,18 @@ func layout(g *gocui.Gui) error {
 		queryView, err := g.View("Query")
 		checkErr(err)
 		if query != "" {
+			var err error
 			ClearPreserveOrigin(queryView)
-			fmt.Fprintln(queryView, query)
+			batCmd := exec.Command("bat", "-l", "sql", "-p", "--color", "always")
+			stdin, err := batCmd.StdinPipe()
+			fmt.Fprintln(stdin, query)
+			err = stdin.Close()
+			result, err := batCmd.Output()
+			if err == nil {
+				queryView.Write(result)
+			} else {
+				fmt.Fprintln(queryView, query)
+			}
 		} else {
 			queryView.Clear()
 		}
