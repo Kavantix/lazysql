@@ -44,12 +44,17 @@ func handleError(err error) bool {
 func showDatabases(db *sql.DB) []string {
 	databases := []string{}
 	rows, err := db.Query("Show databases")
-	checkErr(err)
+	if handleError(err) {
+		return databases
+	}
+	// checkErr(err)
 	index := 0
 	for rows.Next() {
 		databases = append(databases, "")
 		err := rows.Scan(&databases[index])
-		checkErr(err)
+		if handleError(err) {
+			return databases
+		}
 		index += 1
 	}
 	return databases
@@ -152,9 +157,10 @@ func main() {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, hostname, port)
 
 	db, err = sql.Open("mysql", dsn)
-	checkErr(err)
-
-	databases = showDatabases(db)
+	// checkErr(err)
+	if !handleError(err) {
+		databases = showDatabases(db)
+	}
 
 	g.SelFrameColor = gocui.ColorGreen
 	g.Highlight = true
