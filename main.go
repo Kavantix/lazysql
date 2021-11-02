@@ -33,6 +33,14 @@ func checkErr(err error) {
 	}
 }
 
+func handleError(err error) bool {
+	if err != nil {
+		errorMessage = err
+	}
+
+	return errorMessage != nil
+}
+
 func showDatabases(db *sql.DB) []string {
 	databases := []string{}
 	rows, err := db.Query("Show databases")
@@ -66,11 +74,17 @@ func showTables(db *sql.DB, dbname string) []string {
 func selectData(db *sql.DB) [][]string {
 	values := [][]string{}
 	rows, err := db.Query(query)
-	checkErr(err)
+	if handleError(err) {
+		return values
+	}
+	// checkErr(err)
 	index := 0
 	columnNames, err = rows.Columns()
 	numColumns := len(columnNames)
-	checkErr(err)
+	if handleError(err) {
+		return values
+	}
+	// checkErr(err)
 	for rows.Next() && index < 200 {
 		row := make([]sql.NullString, numColumns)
 		scannableRow := make([]interface{}, numColumns)
@@ -87,7 +101,10 @@ func selectData(db *sql.DB) [][]string {
 			}
 		}
 		values = append(values, rowValues)
-		checkErr(err)
+		if handleError(err) {
+			return values
+		}
+		// checkErr(err)
 		index += 1
 	}
 	rows.Close()
@@ -106,6 +123,8 @@ var tableValues [][]string
 var currentLine int
 
 var databasesPane, tablesPane, queryPane, resultsPane *Pane
+var errorView *gocui.View
+var errorMessage error
 
 func main() {
 	err := godotenv.Load()
@@ -153,9 +172,17 @@ func main() {
 		log.Panicln(err)
 	}
 
+	// if err := g.SetKeybinding("", gocui.KeyArrowRight, gocui.ModNone, currentViewDown); err != nil {
+	// 	log.Panicln(err)
+	// }
+
 	if err := g.SetKeybinding("", 'h', gocui.ModNone, currentViewUp); err != nil {
 		log.Panicln(err)
 	}
+
+	// if err := g.SetKeybinding("", gocui.KeyArrowLeft, gocui.ModNone, currentViewUp); err != nil {
+	// 	log.Panicln(err)
+	// }
 
 	if err := g.SetKeybinding("", 'c', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		g.SetCurrentView("Query")
@@ -168,6 +195,18 @@ func main() {
 	databasesPane.SetContent(databases)
 	databasesPane.OnSelectItem(onSelectDatabase(g))
 	databasesPane.Select()
+	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
+	errorView.Visible = false
+	errorView.Title = "Error"
+
+	if err := g.SetKeybinding("errors", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		errorMessage = nil
+		tablesPane.Select()
+		return nil
+	}); err != nil {
+		log.Panicln(err)
+	}
+
 	// queryPane = NewPane(g, "Query")
 	queryEditor = &QueryEditor{g: g}
 	tablesPane = NewPane(g, "Tables")
@@ -275,7 +314,6 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		}
 		q.cursor += 1
 	case gocui.KeyEnter:
-		query = strings.Trim(query, " \n")
 		if len(query) > 0 && query[len(query)-1:] == ";" {
 			tablesPane.Select()
 			go func() {
@@ -291,7 +329,7 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 			if q.cursor >= len(query) {
 				query += "\n"
 			} else {
-				query = strings.Trim(query[:q.cursor], " \n") + "\n" + strings.Trim(query[q.cursor:], " \n")
+				query = query[:q.cursor] + "\n" + query[q.cursor:]
 			}
 			q.cursor += 1
 		}
@@ -444,6 +482,17 @@ func layout(g *gocui.Gui) error {
 		g.CurrentView().MoveCursor(cursor, row)
 	} else {
 		g.Cursor = false
+	}
+
+	if errorMessage != nil {
+		errorView.Visible = true
+		g.SetView("errors", 4, 4, maxX-4, maxY-4, 0)
+		g.SetViewOnTop("errors")
+		errorView.Clear()
+		fmt.Fprint(errorView, errorMessage)
+		g.SetCurrentView("errors")
+	} else {
+		errorView.Visible = false
 	}
 	return nil
 }

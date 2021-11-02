@@ -37,8 +37,14 @@ func NewPane(g *gocui.Gui, name string) *Pane {
 	if err := g.SetKeybinding(name, 'j', gocui.ModNone, p.onCursorDown); err != nil {
 		log.Panicln(err)
 	}
+	if err := g.SetKeybinding(name, gocui.KeyArrowDown, gocui.ModNone, p.onCursorDown); err != nil {
+		log.Panicln(err)
+	}
 
 	if err := g.SetKeybinding(name, 'k', gocui.ModNone, p.onCursorUp); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(name, gocui.KeyArrowUp, gocui.ModNone, p.onCursorUp); err != nil {
 		log.Panicln(err)
 	}
 
