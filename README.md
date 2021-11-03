@@ -21,3 +21,16 @@ An example can be found in `.env.example`
 | PASSWORD | The password to use to login to the database |  |
 | PORT | The port to use to connect to the database | 3306 |
 
+## TODO
+
+- [x] Show errors in popup pane
+- [ ] Highlight current database
+- [ ] Hosts pane
+- [ ] Configuring connections from UI
+- [ ] Interactive values pane
+    - [ ] Moving around with hjkl/arrows
+    - [ ] Moving around with mouse
+    - [ ] Editing fields
+- [ ] Resizable panes
+- [ ] Improved query editor
+- [ ] Highlight current table based on query
