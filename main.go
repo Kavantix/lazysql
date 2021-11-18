@@ -90,7 +90,7 @@ func selectData(db *sql.DB, query string) [][]string {
 		return values
 	}
 	// checkErr(err)
-	for rows.Next() && index < 2000 {
+	for rows.Next() && index < 9999 {
 		row := make([]sql.NullString, numColumns)
 		scannableRow := make([]interface{}, numColumns)
 		for i, _ := range row {
@@ -324,7 +324,7 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		q.cursor += 1
 	case gocui.KeyEnter:
 		if len(query) > 0 && query[len(query)-1:] == ";" {
-			tablesPane.Select()
+			resultsPane.Select()
 			go func() {
 				tableValues = selectData(db, query)
 				q.g.UpdateAsync(func(g *gocui.Gui) error {
@@ -341,7 +341,7 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 			q.cursor += 1
 		}
 	case gocui.KeyEsc:
-		tablesPane.Select()
+		resultsPane.Select()
 	}
 	if key == 0 {
 		if q.cursor >= len(query) {
@@ -473,10 +473,6 @@ func changeDatabase(g *gocui.Gui, dbname string) {
 
 			g.UpdateAsync(func(g *gocui.Gui) error {
 				tables = newTables
-				v, _ := g.View("Tables")
-				g.SetCurrentView(v.Name())
-				currentLine = 0
-				v.SetOrigin(0, 0)
 				return nil
 			})
 		}()
@@ -496,7 +492,7 @@ func changeTable(g *gocui.Gui, table string) {
 	if selectedTable != table {
 		selectedTable = table
 		tableValues = [][]string{}
-		query := fmt.Sprintf("SELECT * FROM `%s` LIMIT 100", selectedTable)
+		query := fmt.Sprintf("SELECT * FROM `%s` LIMIT 9999", selectedTable)
 		queryEditor.query = query
 		go func() {
 			tableValues = selectData(db, query)
@@ -559,6 +555,8 @@ func currentViewDown(g *gocui.Gui, v *gocui.View) error {
 	case databasesPane.Name:
 		tablesPane.Select()
 	case tablesPane.Name:
+		resultsPane.Select()
+	case resultsPane.Name:
 		databasesPane.Select()
 	}
 	return nil
@@ -567,9 +565,11 @@ func currentViewDown(g *gocui.Gui, v *gocui.View) error {
 func currentViewUp(g *gocui.Gui, v *gocui.View) error {
 	switch v.Name() {
 	case databasesPane.Name:
-		tablesPane.Select()
+		resultsPane.Select()
 	case tablesPane.Name:
 		databasesPane.Select()
+	case resultsPane.Name:
+		tablesPane.Select()
 	}
 	return nil
 }
