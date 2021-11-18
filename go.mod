@@ -3,6 +3,7 @@ module github.com/Kavantix/lazysql
 go 1.17
 
 require (
+	github.com/alecthomas/chroma v0.9.4
 	github.com/awesome-gocui/gocui v1.0.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/joho/godotenv v1.4.0
@@ -10,6 +11,7 @@ require (
 )
 
 require (
+	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/gdamore/tcell/v2 v2.0.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect

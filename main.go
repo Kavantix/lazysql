@@ -6,11 +6,11 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 
 	. "github.com/Kavantix/lazysql/pane"
 	. "github.com/Kavantix/lazysql/results"
+	"github.com/alecthomas/chroma/quick"
 
 	"github.com/awesome-gocui/gocui"
 	_ "github.com/go-sql-driver/mysql"
@@ -76,7 +76,7 @@ func showTables(db *sql.DB, dbname string) []string {
 	return databases
 }
 
-func selectData(db *sql.DB) [][]string {
+func selectData(db *sql.DB, query string) [][]string {
 	values := [][]string{}
 	rows, err := db.Query(query)
 	if handleError(err) {
@@ -116,7 +116,6 @@ func selectData(db *sql.DB) [][]string {
 	return values
 }
 
-var query string
 var db *sql.DB
 var databases []string
 var selectedDatabase string
@@ -246,11 +245,13 @@ var numLayouts = 0
 type QueryEditor struct {
 	g      *gocui.Gui
 	cursor int
+	query  string
 }
 
 var queryEditor *QueryEditor
 
 func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	query := q.query
 	switch key {
 	case gocui.KeyArrowLeft:
 		if q.cursor > 0 {
@@ -325,7 +326,7 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		if len(query) > 0 && query[len(query)-1:] == ";" {
 			tablesPane.Select()
 			go func() {
-				tableValues = selectData(db)
+				tableValues = selectData(db, query)
 				q.g.UpdateAsync(func(g *gocui.Gui) error {
 					resultsPane.SetContent(columnNames, tableValues)
 					return nil
@@ -352,8 +353,8 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 	}
 	if q.cursor > len(query) {
 		q.cursor = len(query)
-
 	}
+	q.query = query
 }
 
 func layout(g *gocui.Gui) error {
@@ -367,6 +368,7 @@ func layout(g *gocui.Gui) error {
 			if g.CurrentView().Name() != "Query" {
 				g.SetCurrentView("Query")
 			} else {
+				query := queryEditor.query
 				cx, cy := v.Cursor()
 				lines := strings.Split(query, "\n")
 				cursor := 0
@@ -411,26 +413,14 @@ func layout(g *gocui.Gui) error {
 		queryView, err := g.View("Query")
 		queryView.Wrap = true
 		checkErr(err)
-		if query != "" {
-			var err error
-			ClearPreserveOrigin(queryView)
-			batCmd := exec.Command("bat", "-l", "sql", "-p", "--color", "always")
-			stdin, err := batCmd.StdinPipe()
-			fmt.Fprint(stdin, query)
-			err = stdin.Close()
-			result, err := batCmd.Output()
-			if err == nil {
-				queryView.Write(result)
-			} else {
-				fmt.Fprint(queryView, query)
-			}
-		} else {
-			queryView.Clear()
+		ClearPreserveOrigin(queryView)
+		if queryEditor.query != "" {
+			quick.Highlight(queryView, queryEditor.query, "mysql", "terminal256", "monokai")
 		}
 	}
 	if g.CurrentView().Name() == "Query" {
 		g.Cursor = true
-		lines := strings.Split(query, "\n")
+		lines := strings.Split(queryEditor.query, "\n")
 		line := lines[0]
 		cursor := queryEditor.cursor
 		row := 0
@@ -506,16 +496,14 @@ func changeTable(g *gocui.Gui, table string) {
 	if selectedTable != table {
 		selectedTable = table
 		tableValues = [][]string{}
+		query := fmt.Sprintf("SELECT * FROM `%s` LIMIT 100", selectedTable)
+		queryEditor.query = query
 		go func() {
-			query = fmt.Sprintf("SELECT * FROM `%s` LIMIT 100", selectedTable)
-			tableValues = selectData(db)
-			g.UpdateAsync(func(g *gocui.Gui) error {
-				resultsPane.SetContent(
-					columnNames,
-					tableValues,
-				)
-				return nil
-			})
+			tableValues = selectData(db, query)
+			resultsPane.SetContent(
+				columnNames,
+				tableValues,
+			)
 		}()
 	}
 }
