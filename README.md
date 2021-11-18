@@ -31,6 +31,7 @@ An example can be found in `.env.example`
     - [ ] Moving around with hjkl/arrows
     - [ ] Moving around with mouse
     - [ ] Editing fields
+    - [ ] Resize columns to content/type
 - [ ] Resizable panes
 - [ ] Improved query editor
 - [ ] Highlight current table based on query

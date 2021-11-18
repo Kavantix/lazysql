@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	. "github.com/Kavantix/lazysql/pane"
+	. "github.com/Kavantix/lazysql/results"
 
 	"github.com/awesome-gocui/gocui"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
-	"github.com/olekukonko/tablewriter"
 )
 
 var logFile *os.File
@@ -127,7 +127,8 @@ var tableValues [][]string
 
 var currentLine int
 
-var databasesPane, tablesPane, queryPane, resultsPane *Pane
+var databasesPane, tablesPane, queryPane *Pane
+var resultsPane *ResultsPane
 var errorView *gocui.View
 var errorMessage error
 
@@ -204,6 +205,7 @@ func main() {
 	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
 	errorView.Visible = false
 	errorView.Title = "Error"
+	resultsPane = NewResultsPane(g)
 
 	if err := g.SetKeybinding("errors", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		errorMessage = nil
@@ -325,9 +327,7 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 			go func() {
 				tableValues = selectData(db)
 				q.g.UpdateAsync(func(g *gocui.Gui) error {
-					v, _ := g.View("Values")
-					v.Clear()
-					redraw(g)
+					resultsPane.SetContent(columnNames, tableValues)
 					return nil
 				})
 			}()
@@ -359,11 +359,6 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 func layout(g *gocui.Gui) error {
 	numLayouts += 1
 	maxX, maxY := g.Size()
-	if _, err := g.SetView("Values", maxX/3, 7, maxX-1, maxY-2, 0); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-	}
 	if queryView, err := g.SetView("Query", maxX/3, 0, maxX-2, 6, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -410,46 +405,8 @@ func layout(g *gocui.Gui) error {
 	databasesPane.Paint()
 	tablesPane.Position(0, maxY/2, maxX/3-1, maxY/2-2)
 	tablesPane.Paint()
-	{
-		valuesView, err := g.View("Values")
-		checkErr(err)
-		if len(tableValues) > 0 {
-			ClearPreserveOrigin(valuesView)
-			table := tablewriter.NewWriter(valuesView)
-			table.SetBorders(tablewriter.Border{
-				Bottom: true,
-				Right:  true,
-				Left:   true,
-				Top:    false,
-			})
-			table.SetHeader(columnNames)
-			table.SetAutoFormatHeaders(false)
-			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-			// sx, _ := valuesView.Size()
-			// var columnSize int
-			if len(columnNames) > 0 {
-				// columnSize = Max(0, (sx-2-len(columnNames)-len(columnNames))/len(columnNames))
-			}
-			// table.SetColWidth(columnSize)
-			alignments := make([]int, len(columnNames))
-			for i, _ := range columnNames {
-				// table.SetColMinWidth(i, columnSize)
-				alignments[i] = tablewriter.ALIGN_LEFT
-			}
-			table.SetColumnAlignment(alignments)
-			table.SetAutoWrapText(false)
-			table.AppendBulk(tableValues)
-			table.Render()
-			// valuesView.Title = selectedTable
-			// fmt.Fprintln(valuesView, columnNames)
-			// for _, row := range tableValues {
-			// 	fmt.Fprintln(valuesView, row)
-			// }
-		} else {
-			valuesView.Clear()
-			valuesView.Title = "Values"
-		}
-	}
+	resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
+	resultsPane.Paint()
 	{
 		queryView, err := g.View("Query")
 		queryView.Wrap = true
@@ -553,9 +510,10 @@ func changeTable(g *gocui.Gui, table string) {
 			query = fmt.Sprintf("SELECT * FROM `%s` LIMIT 100", selectedTable)
 			tableValues = selectData(db)
 			g.UpdateAsync(func(g *gocui.Gui) error {
-				v, _ := g.View("Values")
-				v.Clear()
-				redraw(g)
+				resultsPane.SetContent(
+					columnNames,
+					tableValues,
+				)
 				return nil
 			})
 		}()
