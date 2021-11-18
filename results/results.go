@@ -33,6 +33,14 @@ func NewResultsPane(g *gocui.Gui) *ResultsPane {
 	}
 	g.SetKeybinding(r.Name, gocui.MouseWheelDown, gocui.ModNone, r.moveDown)
 	g.SetKeybinding(r.Name, gocui.MouseWheelUp, gocui.ModNone, r.moveUp)
+	g.SetKeybinding(r.Name, gocui.KeyArrowLeft, gocui.ModNone, r.moveLeft)
+	g.SetKeybinding(r.Name, gocui.KeyArrowRight, gocui.ModNone, r.moveRight)
+	g.SetKeybinding(r.Name, gocui.KeyArrowDown, gocui.ModNone, r.moveDown)
+	g.SetKeybinding(r.Name, gocui.KeyArrowUp, gocui.ModNone, r.moveUp)
+	g.SetKeybinding(r.Name, gocui.KeyPgdn, gocui.ModNone, r.movePageDown)
+	g.SetKeybinding(r.Name, gocui.KeyPgup, gocui.ModNone, r.movePageUp)
+	g.SetKeybinding(r.Name, gocui.KeyCtrlD, gocui.ModNone, r.movePageDown)
+	g.SetKeybinding(r.Name, gocui.KeyCtrlU, gocui.ModNone, r.movePageUp)
 	r.unfocus(g, view)
 	return r
 }
@@ -92,6 +100,17 @@ func (r *ResultsPane) moveRight(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func (r *ResultsPane) movePageDown(g *gocui.Gui, v *gocui.View) error {
+	_, sy := r.View.Size()
+	r.setYOffset(r.yOffset + sy/2)
+	return nil
+}
+
+func (r *ResultsPane) movePageUp(g *gocui.Gui, v *gocui.View) error {
+	_, sy := r.View.Size()
+	r.setYOffset(r.yOffset - sy/2)
+	return nil
+}
 func (r *ResultsPane) moveDown(g *gocui.Gui, v *gocui.View) error {
 	r.setYOffset(r.yOffset + 1)
 	return nil
