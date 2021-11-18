@@ -90,7 +90,7 @@ func selectData(db *sql.DB, query string) [][]string {
 		return values
 	}
 	// checkErr(err)
-	for rows.Next() && index < 200 {
+	for rows.Next() && index < 2000 {
 		row := make([]sql.NullString, numColumns)
 		scannableRow := make([]interface{}, numColumns)
 		for i, _ := range row {

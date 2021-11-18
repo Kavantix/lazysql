@@ -9,11 +9,13 @@ import (
 )
 
 type ResultsPane struct {
-	Name        string
-	columnNames []string
-	rows        [][]string
-	View        *gocui.View
-	g           *gocui.Gui
+	Name                     string
+	columnNames              []string
+	rows                     [][]string
+	View                     *gocui.View
+	g                        *gocui.Gui
+	dirty                    bool
+	left, top, right, bottom int
 }
 
 func NewResultsPane(g *gocui.Gui) *ResultsPane {
@@ -26,6 +28,7 @@ func NewResultsPane(g *gocui.Gui) *ResultsPane {
 		rows:        make([][]string, 0),
 		View:        view,
 		g:           g,
+		dirty:       true,
 	}
 }
 
@@ -35,6 +38,7 @@ func (r *ResultsPane) SetContent(columnNames []string, rows [][]string) error {
 	}
 
 	r.g.Update(func(g *gocui.Gui) error {
+		r.dirty = true
 		r.columnNames = columnNames
 		r.rows = rows
 		return nil
@@ -44,10 +48,20 @@ func (r *ResultsPane) SetContent(columnNames []string, rows [][]string) error {
 
 func (r *ResultsPane) Position(left, top, right, bottom int) {
 	r.View.Visible = true
-	r.g.SetView(r.Name, left, top, right, bottom, 0)
+	if r.left != left || r.top != top || r.right != right || r.bottom != bottom {
+		r.dirty = true
+		r.left = left
+		r.right = right
+		r.top = top
+		r.bottom = bottom
+		r.g.SetView(r.Name, left, top, right, bottom, 0)
+	}
 }
 
 func (r *ResultsPane) Paint() {
+	if !r.dirty {
+		return
+	}
 	r.View.Clear()
 	if len(r.columnNames) == 0 {
 		return
@@ -115,5 +129,5 @@ func (r *ResultsPane) Paint() {
 		fmt.Fprintln(r.View, line.String())
 	}
 	fmt.Fprintln(r.View, verticalDelimiter.String())
-
+	r.dirty = false
 }
