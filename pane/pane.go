@@ -63,12 +63,17 @@ func NewPane(g *gocui.Gui, name string) *Pane {
 	return p
 }
 
+func (p *Pane) selectItem(item string) {
+	p.Selected = item
+	p.onSelectItem(item)
+}
+
 func (p *Pane) onMouseLeft(g *gocui.Gui, v *gocui.View) error {
 	p.Select()
 	_, cy := v.Cursor()
 	if cy == p.cursor {
 		if len(p.content) > 0 {
-			p.onSelectItem(p.content[p.cursor])
+			p.selectItem(p.content[p.cursor])
 		}
 	} else {
 		p.SetCursor(cy - p.scrollOffset)
@@ -123,7 +128,7 @@ func (p *Pane) onSpace(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 	item := p.content[p.cursor]
-	p.onSelectItem(item)
+	p.selectItem(item)
 	return nil
 }
 
@@ -137,31 +142,39 @@ func bold(text string) string {
 	return fmt.Sprintf("\x1b[0;1m%s\x1b[0m", text)
 }
 
+func grey(text string) string {
+	// choose color mode ; 256 color mode ; dark blue ; bold
+	return fmt.Sprintf("\x1b[38;5;251m%s\x1b[0m", text)
+}
+
+func darkBlue(text string) string {
+	// choose color mode ; 256 color mode ; dark blue ; bold
+	return fmt.Sprintf("\x1b[38;5;38m%s\x1b[0m", text)
+}
+
+func boldDarkBlue(text string) string {
+	// choose color mode ; 256 color mode ; dark blue ; bold
+	return fmt.Sprintf("\x1b[38;5;45;1m%s\x1b[0m", text)
+}
+
 func (p *Pane) Paint() {
 	_, sy := p.View.Size()
 	p.View.Clear()
 	for i := 0; i < sy && i+p.scrollOffset < len(p.content); i += 1 {
 		index := p.scrollOffset + i
 		item := p.content[index]
-		// fmt.Fprintf(p.View, "%d: ", index)
-		selected := p.g.CurrentView() == p.View && p.cursor == index
-		if selected {
+		underCursor := p.g.CurrentView() == p.View && p.cursor == index
+		selected := p.Selected == item
+		if underCursor && selected {
+			fmt.Fprintln(p.View, boldDarkBlue(item))
+		} else if selected {
+			fmt.Fprintln(p.View, darkBlue(item))
+		} else if underCursor {
 			fmt.Fprintln(p.View, bold(item))
 		} else {
-
-			fmt.Fprintln(p.View, item)
+			fmt.Fprintln(p.View, grey(item))
 		}
 	}
-	// isCurrent := item == selectedDatabase && i-originY >= 0 && i-originY < sizeY
-	// if selected && currentDb {
-	// fmt.Fprintln(dbView, boldDarkBlue(db))
-	// } else if currentDb {
-	// fmt.Fprintln(dbView, darkBlue(db))
-	// } else if selected {
-	// fmt.Fprintln(dbView, bold(db))
-	// } else {
-	// fmt.Fprintln(dbView, db)
-	// }
 }
 
 func (p *Pane) OnSelectItem(callback func(item string)) {

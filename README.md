@@ -24,7 +24,7 @@ An example can be found in `.env.example`
 ## TODO
 
 - [x] Show errors in popup pane
-- [ ] Highlight current database
+- [x] Highlight current database
 - [ ] Hosts pane
 - [ ] Configuring connections from UI
 - [ ] Interactive values pane
