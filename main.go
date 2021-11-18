@@ -405,7 +405,7 @@ func layout(g *gocui.Gui) error {
 	}
 	databasesPane.Position(0, 0, maxX/3-1, maxY/2-1)
 	databasesPane.Paint()
-	tablesPane.Position(0, maxY/2, maxX/3-1, maxY/2-2)
+	tablesPane.Position(0, maxY/2, maxX/3-1, maxY-2)
 	tablesPane.Paint()
 	resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
 	resultsPane.Paint()

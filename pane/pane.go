@@ -132,9 +132,9 @@ func (p *Pane) onSpace(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func (p *Pane) Position(left, top, width, height int) {
+func (p *Pane) Position(left, top, right, bottom int) {
 	p.View.Visible = true
-	p.g.SetView(p.Name, left, top, left+width, top+height, 0)
+	p.g.SetView(p.Name, left, top, right, bottom, 0)
 }
 
 func bold(text string) string {
