@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/awesome-gocui/gocui"
 )
 
@@ -52,6 +53,7 @@ func (r *ResultsPane) unfocus(g *gocui.Gui, v *gocui.View) error {
 	g.DeleteKeybinding(r.Name, 'l', gocui.ModNone)
 	g.DeleteKeybinding(r.Name, 'j', gocui.ModNone)
 	g.DeleteKeybinding(r.Name, 'k', gocui.ModNone)
+	g.DeleteKeybinding(r.Name, gocui.KeySpace, gocui.ModNone)
 	g.SetKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone, r.focus)
 	return nil
 }
@@ -63,6 +65,7 @@ func (r *ResultsPane) focus(g *gocui.Gui, v *gocui.View) error {
 	g.SetKeybinding(r.Name, 'j', gocui.ModNone, r.moveDown)
 	g.SetKeybinding(r.Name, 'k', gocui.ModNone, r.moveUp)
 	g.SetKeybinding(r.Name, gocui.KeyEsc, gocui.ModNone, r.unfocus)
+	g.SetKeybinding(r.Name, gocui.KeySpace, gocui.ModNone, r.copyCell)
 	return nil
 }
 
@@ -294,4 +297,11 @@ func grey(text string) string {
 func styleSelectedCell(text string) string {
 	// choose color mode ; 256 color mode ; color ; bold
 	return fmt.Sprintf("\x1b[48;5;54m\x1b[38;5;15;1m%s\x1b[0m", text)
+}
+
+func (r *ResultsPane) copyCell(g *gocui.Gui, v *gocui.View) error {
+	// TODO check if this is possible(if not data)
+	// TODO show a message
+	clipboard.WriteAll(r.rows[r.cursorY][r.cursorX])
+	return nil
 }

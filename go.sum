@@ -1,5 +1,7 @@
 github.com/alecthomas/chroma v0.9.4 h1:YL7sOAE3p8HS96T9km7RgvmsZIctqbK1qJ0b7hzed44=
 github.com/alecthomas/chroma v0.9.4/go.mod h1:jtJATyUxlIORhUOFNA9NZDWGAQ8wpxQQqNSB4rjA/1s=
+github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
+github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/awesome-gocui/gocui v1.0.1 h1:FGzyh+K9NRZTVrj5QhoKVc5iSq1MojzwFFsU7rEmeIs=
 github.com/awesome-gocui/gocui v1.0.1/go.mod h1:UvP3dP6+UsTGl9IuqP36wzz6Lemo90wn5p3tJvZ2OqY=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

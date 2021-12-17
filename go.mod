@@ -10,6 +10,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 )
 
+require github.com/atotto/clipboard v0.1.4
+
 require (
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
