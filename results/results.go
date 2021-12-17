@@ -18,6 +18,7 @@ type ResultsPane struct {
 	left, top, right, bottom int
 	xOffset, yOffset         int
 	cursorX, cursorY         int
+	amountOfVisibleColumns   int
 }
 
 func NewResultsPane(g *gocui.Gui) *ResultsPane {
@@ -164,6 +165,8 @@ func (r *ResultsPane) Paint() {
 	if columnWidth < 12 {
 		columnWidth = 12
 	}
+
+	r.amountOfVisibleColumns = availableSize / columnWidth
 	delimiter := '|'
 
 	verticalDelimiter := strings.Builder{}
@@ -173,7 +176,8 @@ func (r *ResultsPane) Paint() {
 		header.WriteRune(delimiter)
 		verticalDelimiter.WriteString(strings.Repeat("-", numberSize))
 		verticalDelimiter.WriteRune('+')
-		for i, column := range r.columnNames {
+		for i := r.xOffset; i < len(r.columnNames); i++ {
+			column := r.columnNames[i]
 			if len(column) > columnWidth {
 				header.WriteString(bold(column[:columnWidth]))
 			} else {
@@ -202,7 +206,8 @@ func (r *ResultsPane) Paint() {
 		line.WriteString(bold(nrString))
 		line.WriteString(strings.Repeat(" ", numberSize-len(nrString)))
 		line.WriteString(bold(string(delimiter)))
-		for x, column := range r.rows[y] {
+		for x := r.xOffset; x < len(r.rows[y]); x++ {
+			column := r.rows[y][x]
 			cell.Reset()
 			// TODO: nicely visualise newlines
 			column = strings.ReplaceAll(strings.ReplaceAll(column, "\r", ""), "\n", "⏎")
@@ -244,6 +249,14 @@ func (r *ResultsPane) setCursor(offsetX, offsetY int) {
 		offsetY = 0
 	}
 
+	if offsetX > len(r.columnNames)-1 {
+		offsetX = len(r.columnNames) - 1
+	}
+
+	if offsetY > len(r.rows)-1 {
+		offsetY = len(r.rows) - 1
+	}
+
 	if offsetX == r.cursorX && offsetY == r.cursorY {
 		return
 	}
@@ -253,11 +266,18 @@ func (r *ResultsPane) setCursor(offsetX, offsetY int) {
 	r.dirty = true
 
 	_, sy := r.View.Size()
+
 	sy -= 2
 	if r.cursorY-r.yOffset <= 0 {
 		r.yOffset = r.cursorY
 	} else if r.cursorY > sy+r.yOffset-1 {
 		r.yOffset = r.cursorY - sy + 1
+	}
+
+	if r.cursorX-r.xOffset <= 0 {
+		r.xOffset = r.cursorX
+	} else if r.cursorX > r.amountOfVisibleColumns+r.xOffset {
+		r.xOffset = r.cursorX - r.amountOfVisibleColumns
 	}
 }
 
