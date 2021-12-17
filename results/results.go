@@ -17,6 +17,7 @@ type ResultsPane struct {
 	dirty                    bool
 	left, top, right, bottom int
 	xOffset, yOffset         int
+	cursorX, cursorY         int
 }
 
 func NewResultsPane(g *gocui.Gui) *ResultsPane {
@@ -91,12 +92,12 @@ func (r *ResultsPane) setYOffset(offset int) {
 }
 
 func (r *ResultsPane) moveLeft(g *gocui.Gui, v *gocui.View) error {
-	r.setXOffset(r.xOffset + 1)
+	r.setCursor(r.cursorX-1, r.cursorY)
 	return nil
 }
 
 func (r *ResultsPane) moveRight(g *gocui.Gui, v *gocui.View) error {
-	r.setXOffset(r.xOffset - 1)
+	r.setCursor(r.cursorX+1, r.cursorY)
 	return nil
 }
 
@@ -112,12 +113,12 @@ func (r *ResultsPane) movePageUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 func (r *ResultsPane) moveDown(g *gocui.Gui, v *gocui.View) error {
-	r.setYOffset(r.yOffset + 1)
+	r.setCursor(r.cursorX, r.cursorY+1)
 	return nil
 }
 
 func (r *ResultsPane) moveUp(g *gocui.Gui, v *gocui.View) error {
-	r.setYOffset(r.yOffset - 1)
+	r.setCursor(r.cursorX, r.cursorY-1)
 	return nil
 }
 
@@ -194,6 +195,7 @@ func (r *ResultsPane) Paint() {
 		rows = len(r.rows) - r.yOffset
 	}
 	line := strings.Builder{}
+	cell := strings.Builder{}
 	for y := r.yOffset; y < rows+r.yOffset; y += 1 {
 		line.Reset()
 		nrString := fmt.Sprint(y + 1)
@@ -201,16 +203,24 @@ func (r *ResultsPane) Paint() {
 		line.WriteString(strings.Repeat(" ", numberSize-len(nrString)))
 		line.WriteString(bold(string(delimiter)))
 		for x, column := range r.rows[y] {
+			cell.Reset()
 			// TODO: nicely visualise newlines
 			column = strings.ReplaceAll(strings.ReplaceAll(column, "\r", ""), "\n", "⏎")
 			// TODO: handle unicode nicely
 			runes := []rune(column)
 			if len(runes) > columnWidth {
-				line.WriteString(string(runes[:columnWidth]))
+				cell.WriteString(string(runes[:columnWidth]))
 			} else {
-				line.WriteString(column)
-				line.WriteString(strings.Repeat(" ", columnWidth-len(runes)))
+				cell.WriteString(column)
+				cell.WriteString(strings.Repeat(" ", columnWidth-len(runes)))
 			}
+
+			if y == r.cursorY && x == r.cursorX {
+				line.WriteString(styleSelectedCell(cell.String()))
+			} else {
+				line.WriteString(cell.String())
+			}
+
 			if x < len(r.columnNames)-1 {
 				line.WriteRune(delimiter)
 			}
@@ -225,6 +235,32 @@ func (r *ResultsPane) Select() {
 	r.g.SetCurrentView(r.Name)
 }
 
+func (r *ResultsPane) setCursor(offsetX, offsetY int) {
+	if offsetX < 0 {
+		offsetX = 0
+	}
+
+	if offsetY < 0 {
+		offsetY = 0
+	}
+
+	if offsetX == r.cursorX && offsetY == r.cursorY {
+		return
+	}
+
+	r.cursorX = offsetX
+	r.cursorY = offsetY
+	r.dirty = true
+
+	_, sy := r.View.Size()
+	sy -= 2
+	if r.cursorY-r.yOffset <= 0 {
+		r.yOffset = r.cursorY
+	} else if r.cursorY > sy+r.yOffset-1 {
+		r.yOffset = r.cursorY - sy + 1
+	}
+}
+
 func bold(text string) string {
 	// choose color mode ; 256 color mode ; dark blue ; bold
 	return fmt.Sprintf("\x1b[0;1m%s\x1b[0m", text)
@@ -233,4 +269,9 @@ func bold(text string) string {
 func grey(text string) string {
 	// choose color mode ; 256 color mode ; dark blue ; bold
 	return fmt.Sprintf("\x1b[38;5;251m%s\x1b[0m", text)
+}
+
+func styleSelectedCell(text string) string {
+	// choose color mode ; 256 color mode ; color ; bold
+	return fmt.Sprintf("\x1b[48;5;54m\x1b[38;5;15;1m%s\x1b[0m", text)
 }

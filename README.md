@@ -28,10 +28,11 @@ An example can be found in `.env.example`
 - [ ] Hosts pane
 - [ ] Configuring connections from UI
 - [ ] Interactive values pane
-    - [ ] Moving around with hjkl/arrows
+    - [X] Moving around with hjkl/arrows
     - [ ] Moving around with mouse
     - [ ] Editing fields
     - [ ] Resize columns to content/type
+- [ ] Progress indicator for the query that is running
 - [ ] Resizable panes
 - [ ] Improved query editor
 - [ ] Highlight current table based on query

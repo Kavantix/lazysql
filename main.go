@@ -174,7 +174,7 @@ func main() {
 		log.Panicln(err)
 	}
 
-	if err := g.SetKeybinding("", 'l', gocui.ModNone, currentViewDown); err != nil {
+	if err := g.SetKeybinding("", 'l', gocui.ModNone, currentViewUp); err != nil {
 		log.Panicln(err)
 	}
 
@@ -182,7 +182,7 @@ func main() {
 	// 	log.Panicln(err)
 	// }
 
-	if err := g.SetKeybinding("", 'h', gocui.ModNone, currentViewUp); err != nil {
+	if err := g.SetKeybinding("", 'h', gocui.ModNone, currentViewDown); err != nil {
 		log.Panicln(err)
 	}
 
