@@ -174,7 +174,7 @@ func main() {
 		log.Panicln(err)
 	}
 
-	if err := g.SetKeybinding("", 'l', gocui.ModNone, currentViewUp); err != nil {
+	if err := g.SetKeybinding("", 'h', gocui.ModNone, currentViewUp); err != nil {
 		log.Panicln(err)
 	}
 
@@ -182,7 +182,7 @@ func main() {
 	// 	log.Panicln(err)
 	// }
 
-	if err := g.SetKeybinding("", 'h', gocui.ModNone, currentViewDown); err != nil {
+	if err := g.SetKeybinding("", 'l', gocui.ModNone, currentViewDown); err != nil {
 		log.Panicln(err)
 	}
 
@@ -470,6 +470,7 @@ func changeDatabase(g *gocui.Gui, dbname string) {
 			newTables := showTables(db, dbname)
 			tablesPane.SetContent(newTables)
 			tablesPane.SetCursor(0)
+			tablesPane.Select()
 
 			g.UpdateAsync(func(g *gocui.Gui) error {
 				tables = newTables
@@ -495,6 +496,7 @@ func changeTable(g *gocui.Gui, table string) {
 		query := fmt.Sprintf("SELECT * FROM `%s` LIMIT 9999", selectedTable)
 		queryEditor.query = query
 		go func() {
+			resultsPane.SetContent([]string{}, [][]string{})
 			tableValues = selectData(db, query)
 			resultsPane.SetContent(
 				columnNames,

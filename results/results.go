@@ -36,14 +36,23 @@ func NewResultsPane(g *gocui.Gui) *ResultsPane {
 	}
 	g.SetKeybinding(r.Name, gocui.MouseWheelDown, gocui.ModNone, r.moveDown)
 	g.SetKeybinding(r.Name, gocui.MouseWheelUp, gocui.ModNone, r.moveUp)
+	g.SetKeybinding(r.Name, gocui.MouseWheelDown, gocui.ModMouseCtrl, r.moveRight)
+	g.SetKeybinding(r.Name, gocui.MouseWheelUp, gocui.ModMouseCtrl, r.moveLeft)
 	g.SetKeybinding(r.Name, gocui.KeyArrowLeft, gocui.ModNone, r.moveLeft)
 	g.SetKeybinding(r.Name, gocui.KeyArrowRight, gocui.ModNone, r.moveRight)
 	g.SetKeybinding(r.Name, gocui.KeyArrowDown, gocui.ModNone, r.moveDown)
 	g.SetKeybinding(r.Name, gocui.KeyArrowUp, gocui.ModNone, r.moveUp)
 	g.SetKeybinding(r.Name, gocui.KeyPgdn, gocui.ModNone, r.movePageDown)
 	g.SetKeybinding(r.Name, gocui.KeyPgup, gocui.ModNone, r.movePageUp)
-	g.SetKeybinding(r.Name, gocui.KeyCtrlD, gocui.ModNone, r.movePageDown)
-	g.SetKeybinding(r.Name, gocui.KeyCtrlU, gocui.ModNone, r.movePageUp)
+	g.SetKeybinding("", gocui.KeyCtrlD, gocui.ModNone, r.movePageDown)
+	g.SetKeybinding("", gocui.KeyCtrlU, gocui.ModNone, r.movePageUp)
+	g.SetKeybinding("", gocui.KeyCtrlH, gocui.ModNone, r.moveLeft)
+	g.SetKeybinding("", gocui.KeyCtrlL, gocui.ModNone, r.moveRight)
+	g.SetKeybinding("", gocui.KeyCtrlJ, gocui.ModNone, r.moveDown)
+	g.SetKeybinding("", gocui.KeyCtrlK, gocui.ModNone, r.moveUp)
+	g.SetKeybinding("", gocui.KeyCtrlTilde, gocui.ModNone, r.moveUp)
+	g.SetKeybinding("", 'j', gocui.ModAlt, r.moveDown)
+	g.SetKeybinding("", 'k', gocui.ModAlt, r.moveUp)
 	r.unfocus(g, view)
 	return r
 }
@@ -73,8 +82,8 @@ func (r *ResultsPane) setXOffset(offset int) {
 	if offset < 0 {
 		offset = 0
 	}
-	if offset > len(r.columnNames) {
-		offset = len(r.columnNames)
+	if offset > len(r.columnNames)-1 {
+		offset = len(r.columnNames) - 1
 	}
 	if offset != r.xOffset {
 		r.dirty = true
@@ -107,13 +116,13 @@ func (r *ResultsPane) moveRight(g *gocui.Gui, v *gocui.View) error {
 
 func (r *ResultsPane) movePageDown(g *gocui.Gui, v *gocui.View) error {
 	_, sy := r.View.Size()
-	r.setYOffset(r.yOffset + sy/2)
+	r.setCursor(r.cursorX, r.cursorY+sy/2)
 	return nil
 }
 
 func (r *ResultsPane) movePageUp(g *gocui.Gui, v *gocui.View) error {
 	_, sy := r.View.Size()
-	r.setYOffset(r.yOffset - sy/2)
+	r.setCursor(r.cursorX, r.cursorY-sy/2)
 	return nil
 }
 func (r *ResultsPane) moveDown(g *gocui.Gui, v *gocui.View) error {
@@ -135,6 +144,9 @@ func (r *ResultsPane) SetContent(columnNames []string, rows [][]string) error {
 		r.dirty = true
 		r.columnNames = columnNames
 		r.rows = rows
+		r.setXOffset(0)
+		r.setYOffset(0)
+		r.setCursor(0, 0)
 		return nil
 	})
 	return nil
