@@ -299,12 +299,18 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	newQuery := q.query
 	switch {
 	case ch == 'c':
+		fallthrough
+	case ch == 'x':
 		if q.selectionEnd > len(q.query) {
 			q.selectionEnd = len(q.query)
 		}
 		newQuery = q.query[:q.selectionStart] + q.query[q.selectionEnd:]
-		q.mode = ModeInsert
 		q.cursor = q.selectionStart
+		if ch == 'c' {
+			q.mode = ModeInsert
+		} else {
+			q.mode = ModeNormal
+		}
 	}
 	if newQuery != q.query {
 		q.undoStack = append(q.undoStack, q.queryState)
