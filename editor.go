@@ -257,6 +257,8 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 }
 
 func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+
+	// Check movement keys
 	switch {
 	case key == gocui.KeyEsc:
 		q.mode = ModeNormal
@@ -291,6 +293,22 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	} else {
 		q.selectionEnd = q.selectionInitial + 1
 		q.selectionStart = q.cursor
+	}
+
+	// Check editing keys
+	newQuery := q.query
+	switch {
+	case ch == 'c':
+		if q.selectionEnd > len(q.query) {
+			q.selectionEnd = len(q.query)
+		}
+		newQuery = q.query[:q.selectionStart] + q.query[q.selectionEnd:]
+		q.mode = ModeInsert
+		q.cursor = q.selectionStart
+	}
+	if newQuery != q.query {
+		q.undoStack = append(q.undoStack, q.queryState)
+		q.query = newQuery
 	}
 }
 
