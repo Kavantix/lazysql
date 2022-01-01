@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Kavantix/lazysql/highlighting"
 	"github.com/alecthomas/chroma/quick"
 	"github.com/awesome-gocui/gocui"
 )
@@ -32,6 +33,9 @@ type QueryEditor struct {
 	mode               EditMode
 	previousCharacters []rune
 	lastKeyTime        time.Time
+	selectionInitial   int
+	selectionStart     int
+	selectionEnd       int
 }
 
 func NewQueryEditor(g *gocui.Gui) (*QueryEditor, error) {
@@ -88,26 +92,35 @@ func (q *QueryEditor) Position(x0, y0, x1, y1 int) error {
 	_, err := q.g.SetView(q.name, x0, y0, x1, y1, 0)
 	return err
 }
+func styleSelectedCell(text string) string {
+	// choose color mode ; 256 color mode ; color ; bold
+	return fmt.Sprintf("\x1b[48;5;54m\x1b[38;5;15;1m%s\x1b[0m", text)
+}
 
 func (q *QueryEditor) Paint() {
+	if q.mode != ModeNormal && q.g.CurrentView() != q.view {
+		q.undoStack = append(q.undoStack, q.queryState)
+		q.mode = ModeNormal
+		q.g.SetCursorStyle(gocui.CursorStyleBlinkingBlock)
+	}
 	switch q.mode {
 	case ModeInsert:
-		if q.g.CurrentView() != q.view {
-			q.undoStack = append(q.undoStack, q.queryState)
-			q.mode = ModeNormal
-			q.g.SetCursorStyle(gocui.CursorStyleBlinkingBlock)
-		} else {
-			q.g.SetCursorStyle(gocui.CursorStyleBlinkingBar)
-		}
+		q.g.SetCursorStyle(gocui.CursorStyleBlinkingBar)
+		highlighting.CustomFormatter.SelectionStart = 0
+		highlighting.CustomFormatter.SelectionEnd = 0
 	case ModeNormal:
 		q.g.SetCursorStyle(gocui.CursorStyleBlinkingBlock)
+		highlighting.CustomFormatter.SelectionStart = 0
+		highlighting.CustomFormatter.SelectionEnd = 0
 	case ModeVisual:
 		q.g.SetCursorStyle(gocui.CursorStyleBlinkingBlock)
+		highlighting.CustomFormatter.SelectionStart = q.selectionStart
+		highlighting.CustomFormatter.SelectionEnd = q.selectionEnd
 	}
 	q.view.Title = fmt.Sprintf("%s (%s)", q.name, q.ModeName())
 	ClearPreserveOrigin(q.view)
 	if queryEditor.query != "" {
-		quick.Highlight(q.view, queryEditor.query, "mysql", "terminal256", "monokai")
+		quick.Highlight(q.view, queryEditor.query, "mysql", highlighting.CustomFormatter.Name(), "monokai")
 	}
 }
 
@@ -130,6 +143,8 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		q.EditInsert(v, key, ch, mod)
 	case ModeNormal:
 		q.EditNormal(v, key, ch, mod)
+	case ModeVisual:
+		q.EditVisual(v, key, ch, mod)
 	}
 	q.lastKeyTime = time.Now()
 }
@@ -183,6 +198,11 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		}()
 	case ch == 'i':
 		q.mode = ModeInsert
+	case ch == 'v':
+		q.mode = ModeVisual
+		q.selectionStart = q.cursor
+		q.selectionEnd = q.cursor + 1
+		q.selectionInitial = q.cursor
 	case ch == 'I':
 		q.mode = ModeInsert
 		q.cursor = q.startOfCurrentLine()
@@ -234,6 +254,44 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		q.previousCharacters = append(q.previousCharacters, ch)
 	}
 
+}
+
+func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	switch {
+	case key == gocui.KeyEsc:
+		q.mode = ModeNormal
+		q.selectionStart = 0
+		q.selectionEnd = 0
+	case ch == 'h':
+		q.cursorLeft()
+	case ch == 'l':
+		q.cursorRight(q.query)
+	case ch == 'j':
+		q.cursorDown(q.query, v)
+	case ch == 'k':
+		q.cursorUp(v, q.query)
+	case ch == 'e':
+		q.cursor = q.nextEndOfWord()
+	case ch == 'w':
+		q.cursor = q.nextStartOfWord()
+	case ch == 'b':
+		q.cursor = q.previousStartOfWord()
+	case key == gocui.KeyArrowLeft:
+		q.cursorLeft()
+	case key == gocui.KeyArrowRight:
+		q.cursorRight(q.query)
+	case key == gocui.KeyArrowDown:
+		q.cursorDown(q.query, v)
+	case key == gocui.KeyArrowUp:
+		q.cursorUp(v, q.query)
+	}
+	if q.cursor >= q.selectionInitial {
+		q.selectionStart = q.selectionInitial
+		q.selectionEnd = q.cursor + 1
+	} else {
+		q.selectionEnd = q.selectionInitial + 1
+		q.selectionStart = q.cursor
+	}
 }
 
 func (q *QueryEditor) EditInsert(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
