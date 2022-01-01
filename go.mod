@@ -15,9 +15,13 @@ require github.com/atotto/clipboard v0.1.4
 require (
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
-	github.com/gdamore/tcell/v2 v2.0.0 // indirect
-	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
+	github.com/gdamore/tcell/v2 v2.4.1-0.20211227212015-3260e4ac4385 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f // indirect
-	golang.org/x/text v0.3.3 // indirect
+	golang.org/x/sys v0.0.0-20211113001501-0c823b97ae02 // indirect
+	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
+	golang.org/x/text v0.3.7 // indirect
 )
+
+//replace github.com/awesome-gocui/gocui => ../gocui
+replace github.com/awesome-gocui/gocui => github.com/Kavantix/gocui v1.0.2-0.20220101214035-d30ea99964c5

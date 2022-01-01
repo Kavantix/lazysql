@@ -135,6 +135,10 @@ func (r *ResultsPane) moveUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func (r *ResultsPane) Clear() {
+	r.SetContent([]string{}, [][]string{})
+}
+
 func (r *ResultsPane) SetContent(columnNames []string, rows [][]string) error {
 	if len(rows) > 0 && len(columnNames) != len(rows[0]) {
 		return errors.New("Number of columns dont match")

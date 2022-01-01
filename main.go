@@ -10,7 +10,6 @@ import (
 
 	. "github.com/Kavantix/lazysql/pane"
 	. "github.com/Kavantix/lazysql/results"
-	"github.com/alecthomas/chroma/quick"
 
 	"github.com/awesome-gocui/gocui"
 	_ "github.com/go-sql-driver/mysql"
@@ -130,6 +129,7 @@ var databasesPane, tablesPane, queryPane *Pane
 var resultsPane *ResultsPane
 var errorView *gocui.View
 var errorMessage error
+var queryEditor *QueryEditor
 
 func main() {
 	err := godotenv.Load()
@@ -215,7 +215,9 @@ func main() {
 	}
 
 	// queryPane = NewPane(g, "Query")
-	queryEditor = &QueryEditor{g: g}
+	if queryEditor, err = NewQueryEditor(g); err != nil {
+		log.Panicln(err)
+	}
 	tablesPane = NewPane(g, "Tables")
 	tablesPane.OnSelectItem(onSelectTable(g))
 	// resultsPane = NewPane(g, "Results")
@@ -242,160 +244,10 @@ func boldDarkBlue(text string) string {
 
 var numLayouts = 0
 
-type QueryEditor struct {
-	g      *gocui.Gui
-	cursor int
-	query  string
-}
-
-var queryEditor *QueryEditor
-
-func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
-	query := q.query
-	switch key {
-	case gocui.KeyArrowLeft:
-		if q.cursor > 0 {
-			q.cursor -= 1
-		}
-	case gocui.KeyArrowRight:
-		if q.cursor < len(query) {
-			q.cursor += 1
-		}
-	case gocui.KeyArrowDown:
-		if q.cursor < len(query) {
-			cx, cy := v.Cursor()
-			cy += 1
-			lines := strings.Split(query, "\n")
-			if cy <= len(lines) {
-				cursor := 0
-				i := 0
-				for cy > 0 {
-					cursor += len(lines[i]) + 1
-					i += 1
-					cy -= 1
-				}
-				if i < len(lines) {
-					if cx > len(lines[i]) {
-						cursor += len(lines[i])
-					} else {
-						cursor += cx
-					}
-				}
-				q.cursor = cursor
-			}
-		}
-	case gocui.KeyArrowUp:
-		if q.cursor > 0 {
-			cx, cy := v.Cursor()
-			cy -= 1
-			lines := strings.Split(query, "\n")
-			cursor := 0
-			i := 0
-			for cy > 0 {
-				cursor += len(lines[i]) + 1
-				i += 1
-				cy -= 1
-			}
-			if i < len(lines) {
-				if cx > len(lines[i]) {
-					cursor += len(lines[i])
-				} else {
-					cursor += cx
-				}
-			}
-			q.cursor = cursor
-		}
-	case gocui.KeyDelete:
-		if len(query) > 0 && q.cursor < len(query) {
-			query = query[:q.cursor] + query[q.cursor+1:]
-		}
-	case gocui.KeyBackspace:
-	case gocui.KeyBackspace2:
-		if len(query) > 0 && q.cursor > 0 {
-			query = query[:q.cursor-1] + query[q.cursor:]
-			q.cursor -= 1
-		}
-	case gocui.KeySpace:
-		if q.cursor >= len(query) {
-			query += " "
-		} else {
-			query = query[:q.cursor] + " " + query[q.cursor:]
-		}
-		q.cursor += 1
-	case gocui.KeyEnter:
-		if len(query) > 0 && query[len(query)-1:] == ";" {
-			resultsPane.Select()
-			go func() {
-				tableValues = selectData(db, query)
-				q.g.UpdateAsync(func(g *gocui.Gui) error {
-					resultsPane.SetContent(columnNames, tableValues)
-					return nil
-				})
-			}()
-		} else {
-			if q.cursor >= len(query) {
-				query += "\n"
-			} else {
-				query = query[:q.cursor] + "\n" + query[q.cursor:]
-			}
-			q.cursor += 1
-		}
-	case gocui.KeyEsc:
-		resultsPane.Select()
-	}
-	if key == 0 {
-		if q.cursor >= len(query) {
-			query += string(ch)
-		} else {
-			query = query[:q.cursor] + string(ch) + query[q.cursor:]
-		}
-		q.cursor += 1
-	}
-	if q.cursor > len(query) {
-		q.cursor = len(query)
-	}
-	q.query = query
-}
-
 func layout(g *gocui.Gui) error {
 	numLayouts += 1
 	maxX, maxY := g.Size()
-	if queryView, err := g.SetView("Query", maxX/3, 0, maxX-2, 6, 0); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		if err := g.SetKeybinding("", gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-			if g.CurrentView().Name() != "Query" {
-				g.SetCurrentView("Query")
-			} else {
-				query := queryEditor.query
-				cx, cy := v.Cursor()
-				lines := strings.Split(query, "\n")
-				cursor := 0
-				i := 0
-				for cy > 0 {
-					if i >= len(lines) {
-						break
-					}
-					cursor += len(lines[i]) + 1
-					i += 1
-					cy -= 1
-				}
-				cursor += cx
-				if cursor > len(query) {
-					cursor = len(query)
-				}
-				queryEditor.cursor = cursor
-			}
-			return nil
-		}); err != nil {
-			log.Panicln(err)
-		}
-		queryView.Title = queryView.Name()
-		queryView.Editor = queryEditor
-		queryView.Editable = true
 
-	}
 	if footerView, err := g.SetView("Footer", -1, maxY-2, maxY, maxX, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -403,21 +255,20 @@ func layout(g *gocui.Gui) error {
 		footerView.Frame = false
 		footerView.WriteString("Footer")
 	}
+	if footerView, err := g.View("Footer"); err == nil {
+		footerView.Clear()
+		if len(gocui.EventLog) > 0 {
+			footerView.WriteString(gocui.EventLog[len(gocui.EventLog)-1])
+		}
+	}
 	databasesPane.Position(0, 0, maxX/3-1, maxY/2-1)
 	databasesPane.Paint()
 	tablesPane.Position(0, maxY/2, maxX/3-1, maxY-2)
 	tablesPane.Paint()
 	resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
 	resultsPane.Paint()
-	{
-		queryView, err := g.View("Query")
-		queryView.Wrap = true
-		checkErr(err)
-		ClearPreserveOrigin(queryView)
-		if queryEditor.query != "" {
-			quick.Highlight(queryView, queryEditor.query, "mysql", "terminal256", "monokai")
-		}
-	}
+	queryEditor.Position(maxX/3, 0, maxX-2, 6)
+	queryEditor.Paint()
 	if g.CurrentView().Name() == "Query" {
 		g.Cursor = true
 		lines := strings.Split(queryEditor.query, "\n")
@@ -493,15 +344,16 @@ func changeTable(g *gocui.Gui, table string) {
 	if selectedTable != table {
 		selectedTable = table
 		tableValues = [][]string{}
-		query := fmt.Sprintf("SELECT * FROM `%s` LIMIT 9999", selectedTable)
+		query := fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT 9999", selectedTable)
 		queryEditor.query = query
 		go func() {
-			resultsPane.SetContent([]string{}, [][]string{})
+			resultsPane.Clear()
 			tableValues = selectData(db, query)
 			resultsPane.SetContent(
 				columnNames,
 				tableValues,
 			)
+			queryEditor.Select()
 		}()
 	}
 }
