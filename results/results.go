@@ -173,7 +173,7 @@ func (r *ResultsPane) Paint() {
 		return
 	}
 	r.View.Clear()
-	if len(r.columnNames) == 0 {
+	if len(r.columnNames) == 0 || len(r.rows) == 0 {
 		return
 	}
 	sx, sy := r.View.Size()
@@ -217,15 +217,21 @@ func (r *ResultsPane) Paint() {
 	if sy-2 > len(r.rows)-r.yOffset {
 		rows = len(r.rows) - r.yOffset
 	}
+	rows += r.yOffset
+	if rows > len(r.rows) {
+		rows = len(r.rows)
+	}
 	line := strings.Builder{}
 	cell := strings.Builder{}
-	for y := r.yOffset; y < rows+r.yOffset; y += 1 {
+
+	for y := r.yOffset; y < rows; y += 1 {
 		line.Reset()
 		nrString := fmt.Sprint(y + 1)
 		line.WriteString(bold(nrString))
 		line.WriteString(strings.Repeat(" ", numberSize-len(nrString)))
 		line.WriteString(bold(string(delimiter)))
-		for x := r.xOffset; x < len(r.rows[y]); x++ {
+		rowLength := r.rows[y]
+		for x := r.xOffset; x < len(rowLength); x++ {
 			column := r.rows[y][x]
 			cell.Reset()
 			// TODO: nicely visualise newlines

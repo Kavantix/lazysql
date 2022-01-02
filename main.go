@@ -297,6 +297,7 @@ func layout(g *gocui.Gui) error {
 		g.SetCurrentView("errors")
 	} else {
 		errorView.Visible = false
+		g.SetViewOnBottom(errorView.Name())
 	}
 	return nil
 }

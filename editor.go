@@ -218,12 +218,9 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		}
 	case key == gocui.KeyEnter:
 		go func() {
-			resultsPane.Clear()
+			// resultsPane.Clear()
 			tableValues = selectData(db, q.query)
-			q.g.UpdateAsync(func(g *gocui.Gui) error {
-				resultsPane.SetContent(columnNames, tableValues)
-				return nil
-			})
+			resultsPane.SetContent(columnNames, tableValues)
 		}()
 	case ch == 'i':
 		q.mode = ModeInsert
