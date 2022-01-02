@@ -24,4 +24,4 @@ require (
 )
 
 //replace github.com/awesome-gocui/gocui => ../gocui
-replace github.com/awesome-gocui/gocui => github.com/Kavantix/gocui v1.0.2-0.20220101214035-d30ea99964c5
+replace github.com/awesome-gocui/gocui => github.com/Kavantix/gocui v1.0.2-0.20220102112825-24eb3a7a4fb0

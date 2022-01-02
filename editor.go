@@ -76,6 +76,19 @@ func NewQueryEditor(g *gocui.Gui) (*QueryEditor, error) {
 		}); err != nil {
 			return nil, err
 		}
+		if err := g.SetKeybinding(q.name, gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			switch q.mode {
+			case ModeInsert:
+				q.mode = ModeNormal
+			case ModeNormal:
+				return gocui.ErrQuit
+			case ModeVisual:
+				q.mode = ModeNormal
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
 		queryView.Editor = q
 		queryView.Editable = true
 		queryView.Wrap = true
@@ -191,6 +204,8 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 				q.mode = ModeInsert
 			}
 			q.previousCharacters = []rune{}
+		case "gv":
+			q.mode = ModeVisual
 		}
 		return
 	}
@@ -222,7 +237,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		q.cursor = q.startOfCurrentLine()
 	case ch == 'a':
 		q.mode = ModeInsert
-		q.cursorRight(q.query)
+		q.cursorRight()
 	case ch == 'A':
 		q.mode = ModeInsert
 		q.cursor = q.endOfCurrentLine()
@@ -251,7 +266,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	case ch == 'h':
 		q.cursorLeft()
 	case ch == 'l':
-		q.cursorRight(q.query)
+		q.cursorRight()
 	case ch == 'j':
 		q.cursorDown(q.query, v)
 	case ch == 'k':
@@ -259,7 +274,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	case key == gocui.KeyArrowLeft:
 		q.cursorLeft()
 	case key == gocui.KeyArrowRight:
-		q.cursorRight(q.query)
+		q.cursorRight()
 	case key == gocui.KeyArrowDown:
 		q.cursorDown(q.query, v)
 	case key == gocui.KeyArrowUp:
@@ -276,12 +291,10 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	switch {
 	case key == gocui.KeyEsc:
 		q.mode = ModeNormal
-		q.selectionStart = 0
-		q.selectionEnd = 0
 	case ch == 'h':
 		q.cursorLeft()
 	case ch == 'l':
-		q.cursorRight(q.query)
+		q.cursorRight()
 	case ch == 'j':
 		q.cursorDown(q.query, v)
 	case ch == 'k':
@@ -293,9 +306,17 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	case ch == 'b':
 		q.cursor = q.previousStartOfWord()
 	case key == gocui.KeyArrowLeft:
-		q.cursorLeft()
+		if mod == 0 {
+			q.cursorLeft()
+		} else if mod == gocui.ModShift {
+			q.cursor = q.previousStartOfWord()
+		}
 	case key == gocui.KeyArrowRight:
-		q.cursorRight(q.query)
+		if mod == 0 {
+			q.cursorRight()
+		} else if mod == gocui.ModShift {
+			q.cursor = q.nextStartOfWord()
+		}
 	case key == gocui.KeyArrowDown:
 		q.cursorDown(q.query, v)
 	case key == gocui.KeyArrowUp:
@@ -312,9 +333,7 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	// Check editing keys
 	newQuery := q.query
 	switch {
-	case ch == 'c':
-		fallthrough
-	case ch == 'x':
+	case ch == 'x', ch == 'c':
 		if q.selectionEnd > len(q.query) {
 			q.selectionEnd = len(q.query)
 		}
@@ -337,9 +356,17 @@ func (q *QueryEditor) EditInsert(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	query := q.query
 	switch key {
 	case gocui.KeyArrowLeft:
-		q.cursorLeft()
+		if mod == 0 {
+			q.cursorLeft()
+		} else if mod == gocui.ModShift {
+			q.cursor = q.previousStartOfWord()
+		}
 	case gocui.KeyArrowRight:
-		q.cursorRight(query)
+		if mod == 0 {
+			q.cursorRight()
+		} else if mod == gocui.ModShift {
+			q.cursor = q.nextStartOfWord()
+		}
 	case gocui.KeyArrowDown:
 		q.cursorDown(query, v)
 	case gocui.KeyArrowUp:
@@ -365,6 +392,12 @@ func (q *QueryEditor) EditInsert(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		query = q.insertNewlineAtCursor(query)
 	case gocui.KeyEsc:
 		q.mode = ModeNormal
+	case gocui.KeyCtrlW:
+		start := q.previousStartOfWord()
+		if start < q.cursor {
+			query = q.query[:start] + q.query[q.cursor:]
+			q.cursor = start
+		}
 	}
 	if key == 0 {
 		if q.cursor >= len(query) {
@@ -549,8 +582,8 @@ func (q *QueryEditor) cursorLeft() {
 	}
 }
 
-func (q *QueryEditor) cursorRight(query string) {
-	if q.cursor < len(query) {
+func (q *QueryEditor) cursorRight() {
+	if q.cursor < len(q.query) {
 		q.cursor += 1
 	}
 }

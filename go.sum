@@ -1,5 +1,5 @@
-github.com/Kavantix/gocui v1.0.2-0.20220101214035-d30ea99964c5 h1:+AzvCIDjRUrtJTms5Y4+QozSg0Kyf51iwhEOICzyxGw=
-github.com/Kavantix/gocui v1.0.2-0.20220101214035-d30ea99964c5/go.mod h1:BUYI8OKKSPxDx4121cDR5rwOSDcJYEP+wJVHgkTs6cw=
+github.com/Kavantix/gocui v1.0.2-0.20220102112825-24eb3a7a4fb0 h1:V6uE9owcMpJgNYWsUS6F32t1RGEJSkjkQwOeocGIaGE=
+github.com/Kavantix/gocui v1.0.2-0.20220102112825-24eb3a7a4fb0/go.mod h1:BUYI8OKKSPxDx4121cDR5rwOSDcJYEP+wJVHgkTs6cw=
 github.com/alecthomas/chroma v0.9.4 h1:YL7sOAE3p8HS96T9km7RgvmsZIctqbK1qJ0b7hzed44=
 github.com/alecthomas/chroma v0.9.4/go.mod h1:jtJATyUxlIORhUOFNA9NZDWGAQ8wpxQQqNSB4rjA/1s=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
