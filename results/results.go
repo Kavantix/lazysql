@@ -80,11 +80,11 @@ func (r *ResultsPane) focus(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (r *ResultsPane) setXOffset(offset int) {
-	if offset < 0 {
-		offset = 0
-	}
 	if offset > len(r.columnNames)-1 {
 		offset = len(r.columnNames) - 1
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	if offset != r.xOffset {
 		r.dirty = true
@@ -93,11 +93,11 @@ func (r *ResultsPane) setXOffset(offset int) {
 }
 
 func (r *ResultsPane) setYOffset(offset int) {
-	if offset < 0 {
-		offset = 0
-	}
 	if offset > len(r.rows)-4 {
 		offset = len(r.rows) - 4
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	if offset != r.yOffset {
 		r.dirty = true
