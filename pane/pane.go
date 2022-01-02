@@ -135,6 +135,14 @@ func (p *Pane) onSpace(g *gocui.Gui, v *gocui.View) error {
 func (p *Pane) Position(left, top, right, bottom int) {
 	p.View.Visible = true
 	p.g.SetView(p.Name, left, top, right, bottom, 0)
+	p.limitCursor(p.cursor)
+	_, sy := p.View.Size()
+	if len(p.content)-p.scrollOffset < sy {
+		p.scrollOffset -= sy - (len(p.content) - p.scrollOffset)
+	}
+	if p.scrollOffset < 0 {
+		p.scrollOffset = 0
+	}
 }
 
 func bold(text string) string {
