@@ -218,8 +218,10 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		}
 	case key == gocui.KeyEnter:
 		go func() {
-			// resultsPane.Clear()
+			resultsPane.View.HasLoader = true
+			resultsPane.Clear()
 			tableValues = selectData(db, q.query)
+			resultsPane.View.HasLoader = false
 			resultsPane.SetContent(columnNames, tableValues)
 		}()
 	case ch == 'i':

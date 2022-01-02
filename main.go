@@ -353,8 +353,10 @@ func changeTable(g *gocui.Gui, table string) {
 		query := fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT 9999", selectedTable)
 		queryEditor.query = query
 		go func() {
+			resultsPane.View.HasLoader = true
 			resultsPane.Clear()
 			tableValues = selectData(db, query)
+			resultsPane.View.HasLoader = false
 			resultsPane.SetContent(
 				columnNames,
 				tableValues,

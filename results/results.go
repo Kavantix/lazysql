@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/atotto/clipboard"
 	"github.com/awesome-gocui/gocui"
@@ -170,6 +171,20 @@ func (r *ResultsPane) Position(left, top, right, bottom int) {
 }
 
 func (r *ResultsPane) Paint() {
+	if r.View.HasLoader {
+		r.View.Clear()
+		characters := "|/-\\"
+		now := time.Now()
+		nanos := now.UnixNano()
+		index := nanos / 50000000 % int64(len(characters))
+		str := characters[index : index+1]
+		sx, sy := r.View.Size()
+		r.View.SetWritePos(sx/2-5, sy/2-1)
+		r.View.WriteString("Loading ")
+		r.View.WriteString(str)
+		r.dirty = true
+		return
+	}
 	if !r.dirty {
 		return
 	}
