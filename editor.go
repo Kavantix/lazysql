@@ -100,6 +100,7 @@ func styleSelectedCell(text string) string {
 func (q *QueryEditor) Paint() {
 	if q.mode != ModeNormal && q.g.CurrentView() != q.view {
 		q.undoStack = append(q.undoStack, q.queryState)
+		q.redoStack = []queryState{}
 		q.mode = ModeNormal
 		q.g.SetCursorStyle(gocui.CursorStyleBlinkingBlock)
 	}
@@ -154,6 +155,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	defer func() {
 		if q.mode == ModeInsert {
 			q.undoStack = append(q.undoStack, previousState)
+			q.redoStack = []queryState{}
 		}
 	}()
 	if time.Now().Sub(q.lastKeyTime).Milliseconds() > 500 {
@@ -170,6 +172,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 				}
 				q.query = q.query[:start] + q.query[end:]
 			}
+			q.previousCharacters = []rune{}
 		case "cc":
 			start := q.startOfCurrentLine()
 			if len(q.query) > 0 {
@@ -178,7 +181,18 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 			}
 			q.cursor = start
 			q.mode = ModeInsert
+			q.previousCharacters = []rune{}
+		case "ciw":
+			start := q.startOfCurrentWord()
+			end := q.endOfCurrentWord() + 1
+			if end < len(q.query) && end > start {
+				q.query = q.query[:start] + q.query[end:]
+				q.cursor = start
+				q.mode = ModeInsert
+			}
+			q.previousCharacters = []rune{}
 		}
+		return
 	}
 	switch {
 	case key == gocui.KeyEsc:
@@ -314,6 +328,7 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	}
 	if newQuery != q.query {
 		q.undoStack = append(q.undoStack, q.queryState)
+		q.redoStack = []queryState{}
 		q.query = newQuery
 	}
 }
@@ -375,17 +390,61 @@ func (q *QueryEditor) insertNewlineAtCursor(query string) string {
 	return query
 }
 
+func (q *QueryEditor) startOfCurrentWord() int {
+	if len(q.query) <= 1 {
+		return 0
+	}
+	if q.cursor >= len(q.query) {
+		return len(q.query)
+	}
+	if q.query[q.cursor] == ' ' || q.query[q.cursor] == '\n' {
+		return q.cursor
+	}
+	var queryBeforeCursor string
+	if q.cursor >= len(q.query) {
+		queryBeforeCursor = q.query
+	} else {
+		queryBeforeCursor = q.query[:q.cursor]
+	}
+	lastWhiteSpace := strings.LastIndexAny(queryBeforeCursor, " \n")
+	if lastWhiteSpace < 0 {
+		return 0
+	} else {
+		return lastWhiteSpace + 1
+	}
+}
+
+func (q *QueryEditor) endOfCurrentWord() int {
+	if len(q.query) <= 1 {
+		return 0
+	}
+	if q.cursor >= len(q.query) {
+		return len(q.query)
+	}
+	if q.query[q.cursor] == ' ' || q.query[q.cursor] == '\n' {
+		return q.cursor
+	}
+	var queryAfterCursor string
+	queryAfterCursor = q.query[q.cursor:]
+	firstWhiteSpace := strings.IndexAny(queryAfterCursor, " \n")
+	if firstWhiteSpace < 0 {
+		return len(q.query) - 1
+	} else {
+		return q.cursor + firstWhiteSpace - 1
+	}
+}
+
 func (q *QueryEditor) startOfCurrentLine() int {
 	if len(q.query) == 0 {
 		return 0
 	}
-	var queryUpToCursor string
+	var queryBeforeCursor string
 	if q.cursor >= len(q.query) {
-		queryUpToCursor = q.query
+		queryBeforeCursor = q.query
 	} else {
-		queryUpToCursor = q.query[:q.cursor]
+		queryBeforeCursor = q.query[:q.cursor]
 	}
-	lastLineBreak := strings.LastIndexByte(queryUpToCursor, '\n')
+	lastLineBreak := strings.LastIndexByte(queryBeforeCursor, '\n')
 	if lastLineBreak < 0 {
 		return 0
 	} else {
