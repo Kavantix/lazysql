@@ -32,7 +32,10 @@ An example can be found in `.env.example`
     - [ ] Moving around with mouse
     - [ ] Editing fields
     - [ ] Resize columns to content/type
-- [ ] Progress indicator for the query that is running
+- [x] Loading indicator for the query that is running
 - [ ] Resizable panes
 - [ ] Improved query editor
+    - [x] Basic VIM emulation
+    - [x] Undo and Redo
+    - [ ] Advanced VIM emulation
 - [ ] Highlight current table based on query
