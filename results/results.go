@@ -7,6 +7,7 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/awesome-gocui/gocui"
+	"github.com/mattn/go-runewidth"
 )
 
 type ResultsPane struct {
@@ -236,13 +237,11 @@ func (r *ResultsPane) Paint() {
 			cell.Reset()
 			// TODO: nicely visualise newlines
 			column = strings.ReplaceAll(strings.ReplaceAll(column, "\r", ""), "\n", "⏎")
-			// TODO: handle unicode nicely
-			runes := []rune(column)
-			if len(runes) > columnWidth {
-				cell.WriteString(string(runes[:columnWidth]))
+			length := runewidth.StringWidth(column)
+			if length > columnWidth {
+				cell.WriteString(runewidth.Truncate(column, columnWidth, ""))
 			} else {
-				cell.WriteString(column)
-				cell.WriteString(strings.Repeat(" ", columnWidth-len(runes)))
+				cell.WriteString(runewidth.FillRight(column, columnWidth))
 			}
 
 			if y == r.cursorY && x == r.cursorX {

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	. "github.com/Kavantix/lazysql/pane"
 	. "github.com/Kavantix/lazysql/results"
@@ -75,7 +76,11 @@ func showTables(db *sql.DB, dbname string) []string {
 	return databases
 }
 
+var queryMutex = sync.Mutex{}
+
 func selectData(db *sql.DB, query string) [][]string {
+	queryMutex.Lock()
+	defer queryMutex.Unlock()
 	values := [][]string{}
 	rows, err := db.Query(query)
 	if handleError(err) {

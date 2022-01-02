@@ -4,13 +4,12 @@ go 1.17
 
 require (
 	github.com/alecthomas/chroma v0.9.4
+	github.com/atotto/clipboard v0.1.4
 	github.com/awesome-gocui/gocui v1.0.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/joho/godotenv v1.4.0
-	github.com/mattn/go-runewidth v0.0.13 // indirect
+	github.com/mattn/go-runewidth v0.0.13
 )
-
-require github.com/atotto/clipboard v0.1.4
 
 require (
 	github.com/dlclark/regexp2 v1.4.0 // indirect

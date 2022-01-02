@@ -71,12 +71,12 @@ func (p *Pane) selectItem(item string) {
 func (p *Pane) onMouseLeft(g *gocui.Gui, v *gocui.View) error {
 	p.Select()
 	_, cy := v.Cursor()
-	if cy == p.cursor {
+	if cy+p.scrollOffset == p.cursor {
 		if len(p.content) > 0 {
 			p.selectItem(p.content[p.cursor])
 		}
 	} else {
-		p.SetCursor(cy - p.scrollOffset)
+		p.SetCursor(cy + p.scrollOffset)
 	}
 	return nil
 }
