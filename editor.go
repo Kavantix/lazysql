@@ -82,7 +82,9 @@ func NewQueryEditor(g *gocui.Gui) (*QueryEditor, error) {
 			case ModeInsert:
 				q.mode = ModeNormal
 			case ModeNormal:
-				return gocui.ErrQuit
+				if !db.CancelQuery() {
+					return gocui.ErrQuit
+				}
 			case ModeVisual:
 				q.mode = ModeNormal
 			}
