@@ -141,9 +141,9 @@ func (r *ResultsPane) Clear() {
 	r.SetContent([]string{}, [][]string{})
 }
 
-func (r *ResultsPane) SetContent(columnNames []string, rows [][]string) error {
+func (r *ResultsPane) SetContent(columnNames []string, rows [][]string) (err error) {
 	if len(rows) > 0 && len(columnNames) != len(rows[0]) {
-		return errors.New("Number of columns dont match")
+		return errors.New("number of columns dont match")
 	}
 
 	r.g.Update(func(g *gocui.Gui) error {

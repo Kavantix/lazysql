@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/alecthomas/chroma"
-	. "github.com/alecthomas/chroma/formatters"
+	"github.com/alecthomas/chroma/formatters"
 )
 
 type ttyTable struct {
@@ -315,7 +315,7 @@ func (c *customTTYFormatter) Format(w io.Writer, style *chroma.Style, it chroma.
 // TTY256 is a 256-colour terminal formatter.
 //
 // The Lab colour space is used to map RGB values to the most appropriate index colour.
-var CustomTTY256 = Register(CustomFormatter.Name(), CustomFormatter)
+var CustomTTY256 = formatters.Register(CustomFormatter.Name(), CustomFormatter)
 
 var CustomFormatter = &customTTYFormatter{table: ttyTables[256]}
 
