@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"io/fs"
 	"log"
@@ -9,11 +9,11 @@ import (
 	"strings"
 	"sync"
 
+	. "github.com/Kavantix/lazysql/driver"
 	. "github.com/Kavantix/lazysql/pane"
 	. "github.com/Kavantix/lazysql/results"
 
 	"github.com/awesome-gocui/gocui"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 )
 
@@ -34,99 +34,19 @@ func checkErr(err error) {
 }
 
 func handleError(err error) bool {
-	if err != nil {
+	if err != nil && err != context.Canceled {
 		errorMessage = err
 	}
 
-	return errorMessage != nil
-}
-
-func showDatabases(db *sql.DB) []string {
-	databases := []string{}
-	rows, err := db.Query("Show databases")
-	if handleError(err) {
-		return databases
-	}
-	// checkErr(err)
-	index := 0
-	for rows.Next() {
-		databases = append(databases, "")
-		err := rows.Scan(&databases[index])
-		if handleError(err) {
-			return databases
-		}
-		index += 1
-	}
-	return databases
-}
-
-func showTables(db *sql.DB, dbname string) []string {
-	databases := []string{}
-	_, err := db.Exec(fmt.Sprintf("use `%s`", dbname))
-	checkErr(err)
-	rows, err := db.Query("Show tables")
-	checkErr(err)
-	index := 0
-	for rows.Next() {
-		databases = append(databases, "")
-		err := rows.Scan(&databases[index])
-		checkErr(err)
-		index += 1
-	}
-	return databases
+	return err != nil
 }
 
 var queryMutex = sync.Mutex{}
 
-func selectData(db *sql.DB, query string) [][]string {
-	queryMutex.Lock()
-	defer queryMutex.Unlock()
-	values := [][]string{}
-	rows, err := db.Query(query)
-	if handleError(err) {
-		return values
-	}
-	// checkErr(err)
-	index := 0
-	columnNames, err = rows.Columns()
-	numColumns := len(columnNames)
-	if handleError(err) {
-		return values
-	}
-	// checkErr(err)
-	for rows.Next() && index < 9999 {
-		row := make([]sql.NullString, numColumns)
-		scannableRow := make([]interface{}, numColumns)
-		for i := range row {
-			scannableRow[i] = &row[i]
-		}
-		err := rows.Scan(scannableRow...)
-		rowValues := make([]string, numColumns)
-		for i, column := range row {
-			if column.Valid {
-				rowValues[i] = strings.ReplaceAll(column.String, "\r", "")
-			} else {
-				rowValues[i] = "NULL"
-			}
-		}
-		values = append(values, rowValues)
-		if handleError(err) {
-			return values
-		}
-		// checkErr(err)
-		index += 1
-	}
-	rows.Close()
-	return values
-}
-
-var db *sql.DB
-var databases []string
-var selectedDatabase string
-var tables []string
-var selectedTable string
-var columnNames []string
-var tableValues [][]string
+var db DatabaseDriver
+var databases []Database
+var selectedDatabase Database
+var selectedTable Table
 
 var currentLine int
 
@@ -149,23 +69,23 @@ func main() {
 	if !hasHostname {
 		hostname = "localhost"
 	}
-	port, hasPort := os.LookupEnv("PORT")
-	if !hasPort {
-		port = "3306"
-	}
+	port, _ := os.LookupEnv("PORT")
 	user, hasUser := os.LookupEnv("DBUSER")
 	if !hasUser {
 		panic("No user specified")
 	}
 	password := os.Getenv("PASSWORD")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, hostname, port)
-
-	db, err = sql.Open("mysql", dsn)
-	// checkErr(err)
+	db, err = NewMysqlDriver(Dsn{
+		Host:     hostname,
+		Port:     port,
+		User:     user,
+		Password: password,
+	})
 	if !handleError(err) {
-		databases = showDatabases(db)
+		databases, err = db.Databases()
 	}
+	handleError(err)
 
 	g.SelFrameColor = gocui.ColorGreen
 	g.Highlight = true
@@ -203,7 +123,7 @@ func main() {
 	}
 
 	databasesPane = NewPane(g, "Databases")
-	databasesPane.SetContent(databases)
+	databasesPane.SetContent(DatabaseNames(databases))
 	databasesPane.OnSelectItem(onSelectDatabase(g))
 	databasesPane.Select()
 	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
@@ -309,11 +229,11 @@ func layout(g *gocui.Gui) error {
 
 func onSelectDatabase(g *gocui.Gui) func(database string) {
 	return func(database string) {
-		changeDatabase(g, database)
+		changeDatabase(g, Database(database))
 	}
 }
 
-func changeDatabase(g *gocui.Gui, dbname string) {
+func changeDatabase(g *gocui.Gui, dbname Database) {
 	if dbname == "" {
 		return
 	}
@@ -324,13 +244,17 @@ func changeDatabase(g *gocui.Gui, dbname string) {
 		// tablesView, _ := g.View("Tables")
 		// tablesView.Clear()
 		go func() {
-			newTables := showTables(db, dbname)
-			tablesPane.SetContent(newTables)
-			tablesPane.SetCursor(0)
-			tablesPane.Select()
-
+			if handleError(db.SelectDatabase(dbname)) {
+				return
+			}
+			newTables, err := db.Tables()
+			if handleError(err) {
+				return
+			}
 			g.UpdateAsync(func(g *gocui.Gui) error {
-				tables = newTables
+				tablesPane.SetCursor(0)
+				tablesPane.Select()
+				tablesPane.SetContent(TableNames(newTables))
 				return nil
 			})
 		}()
@@ -339,29 +263,28 @@ func changeDatabase(g *gocui.Gui, dbname string) {
 
 func onSelectTable(g *gocui.Gui) func(table string) {
 	return func(table string) {
-		changeTable(g, table)
+		changeTable(g, Table(table))
 	}
 }
 
-func changeTable(g *gocui.Gui, table string) {
+func changeTable(g *gocui.Gui, table Table) {
 	if table == "" {
 		return
 	}
 	if selectedTable != table {
 		selectedTable = table
-		tableValues = [][]string{}
 		query := fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT 9999", selectedTable)
 		queryEditor.query = query
 		go func() {
 			resultsPane.View.HasLoader = true
 			resultsPane.Clear()
-			tableValues = selectData(db, query)
+			result, err := db.Query(Query(query))
 			resultsPane.View.HasLoader = false
-			resultsPane.SetContent(
-				columnNames,
-				tableValues,
-			)
-			queryEditor.Select()
+			if !handleError(err) {
+				resultsPane.SetContent(result.Columns, result.Data)
+			} else {
+				redraw(g)
+			}
 		}()
 	}
 }
@@ -404,10 +327,10 @@ func currentLineSelect(g *gocui.Gui, v *gocui.View) error {
 	switch v.Name() {
 	case "Databases":
 		dbName, _ := v.Line(currentLine)
-		changeDatabase(g, dbName)
+		changeDatabase(g, Database(dbName))
 	case "Tables":
 		table, _ := v.Line(currentLine)
-		changeTable(g, table)
+		changeTable(g, Table(table))
 	}
 	return nil
 }

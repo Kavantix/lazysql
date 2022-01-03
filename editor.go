@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	. "github.com/Kavantix/lazysql/driver"
 	"github.com/Kavantix/lazysql/highlighting"
 	"github.com/alecthomas/chroma/quick"
 	"github.com/awesome-gocui/gocui"
@@ -220,9 +221,13 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		go func() {
 			resultsPane.View.HasLoader = true
 			resultsPane.Clear()
-			tableValues = selectData(db, q.query)
+			result, err := db.Query(Query(q.query))
 			resultsPane.View.HasLoader = false
-			resultsPane.SetContent(columnNames, tableValues)
+			if !handleError(err) {
+				resultsPane.SetContent(result.Columns, result.Data)
+			} else {
+				redraw(q.g)
+			}
 		}()
 	case ch == 'i':
 		q.mode = ModeInsert
