@@ -23,10 +23,24 @@ type Database string
 type Table string
 
 type DatabaseDriver interface {
+	// Databases queries the connected instance for which databases exist
 	Databases() ([]Database, error)
+
+	// SelectDatabase changes the database selected for queries
+	// Implementations are allowed to open new connections
+	// Returns an error if changing the database failed
 	SelectDatabase(db Database) error
+
+	// Tables queries the database for which tables exist
+	// A database needs to be selected already using SelectDatabase
 	Tables() ([]Table, error)
+
+	// Query executes a query on the database
+	// Returns an error if the query failed or was cancelled
 	Query(query Query) (*QueryResult, error)
+
+	// CancelQuery cancels any running query
+	// Returns true if a query was cancelled
 	CancelQuery() bool
 }
 
@@ -42,10 +56,12 @@ func (b *BaseDriver) CurrentQuery() Query {
 	return b.currentQuery
 }
 
+// DatabaseNames converts a slice of Database to their names
 func DatabaseNames(databases []Database) []string {
 	return *(*[]string)(unsafe.Pointer(&databases))
 }
 
+// TableNames converts a slice of Table to their names
 func TableNames(tables []Table) []string {
 	return *(*[]string)(unsafe.Pointer(&tables))
 }

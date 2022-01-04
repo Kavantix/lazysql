@@ -19,7 +19,7 @@ import (
 
 var logFile *os.File
 
-/// Log to a log.txt file
+// Log to a log.txt file
 func Log(text string) {
 	if logFile == nil {
 		logFile, _ = os.OpenFile("log.txt", os.O_WRONLY|os.O_TRUNC|os.O_CREATE|os.O_SYNC, fs.ModePerm)
