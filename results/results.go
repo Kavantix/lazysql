@@ -36,6 +36,7 @@ func NewResultsPane(g *gocui.Gui) *ResultsPane {
 		g:           g,
 		dirty:       true,
 	}
+	g.SetKeybinding(r.Name, gocui.MouseLeft, gocui.ModNone, r.mouseDown)
 	g.SetKeybinding(r.Name, gocui.MouseWheelDown, gocui.ModNone, r.moveDown)
 	g.SetKeybinding(r.Name, gocui.MouseWheelUp, gocui.ModNone, r.moveUp)
 	g.SetKeybinding(r.Name, gocui.MouseWheelDown, gocui.ModMouseCtrl, r.moveRight)
@@ -70,6 +71,7 @@ func (r *ResultsPane) unfocus(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (r *ResultsPane) focus(g *gocui.Gui, v *gocui.View) error {
+	r.Select()
 	g.DeleteKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone)
 	g.SetKeybinding(r.Name, 'h', gocui.ModNone, r.moveLeft)
 	g.SetKeybinding(r.Name, 'l', gocui.ModNone, r.moveRight)
@@ -135,6 +137,36 @@ func (r *ResultsPane) moveDown(g *gocui.Gui, v *gocui.View) error {
 func (r *ResultsPane) moveUp(g *gocui.Gui, v *gocui.View) error {
 	r.setCursor(r.cursorX, r.cursorY-1)
 	return nil
+}
+
+func (r *ResultsPane) mouseDown(g *gocui.Gui, v *gocui.View) (err error) {
+	r.focus(g, v)
+	if len(r.columnNames) <= 0 {
+		return
+	}
+	cx, cy := v.Cursor()
+	if cy <= 1 {
+		return
+	}
+	if cx <= 4 {
+		return
+	}
+	cy -= 2
+
+	header, err := v.Line(0)
+	if err != nil {
+		return
+	}
+	if cx > len(header)-2 {
+		return
+	}
+	headerToCursor := header[:cx]
+	columnCount := strings.Count(headerToCursor, "|")
+	r.setCursor(columnCount-1+r.xOffset, cy+r.yOffset)
+
+	gocui.EventLog = append(gocui.EventLog, header)
+
+	return
 }
 
 func (r *ResultsPane) Clear() {
