@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	. "github.com/Kavantix/lazysql/driver"
+	"github.com/Kavantix/lazysql/database"
 	. "github.com/Kavantix/lazysql/pane"
 	. "github.com/Kavantix/lazysql/results"
 
@@ -43,10 +43,10 @@ func handleError(err error) bool {
 
 var queryMutex = sync.Mutex{}
 
-var db DatabaseDriver
-var databases []Database
-var selectedDatabase Database
-var selectedTable Table
+var db database.Driver
+var databases []database.Database
+var selectedDatabase database.Database
+var selectedTable database.Table
 
 var currentLine int
 
@@ -76,7 +76,7 @@ func main() {
 	}
 	password := os.Getenv("PASSWORD")
 
-	db, err = NewMysqlDriver(Dsn{
+	db, err = database.NewMysqlDriver(database.Dsn{
 		Host:     hostname,
 		Port:     port,
 		User:     user,
@@ -123,7 +123,7 @@ func main() {
 	}
 
 	databasesPane = NewPane(g, "Databases")
-	databasesPane.SetContent(DatabaseNames(databases))
+	databasesPane.SetContent(database.DatabaseNames(databases))
 	databasesPane.OnSelectItem(onSelectDatabase(g))
 	databasesPane.Select()
 	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
@@ -228,12 +228,12 @@ func layout(g *gocui.Gui) error {
 }
 
 func onSelectDatabase(g *gocui.Gui) func(database string) {
-	return func(database string) {
-		changeDatabase(g, Database(database))
+	return func(db string) {
+		changeDatabase(g, database.Database(db))
 	}
 }
 
-func changeDatabase(g *gocui.Gui, dbname Database) {
+func changeDatabase(g *gocui.Gui, dbname database.Database) {
 	if dbname == "" {
 		return
 	}
@@ -254,7 +254,7 @@ func changeDatabase(g *gocui.Gui, dbname Database) {
 			g.UpdateAsync(func(g *gocui.Gui) error {
 				tablesPane.SetCursor(0)
 				tablesPane.Select()
-				tablesPane.SetContent(TableNames(newTables))
+				tablesPane.SetContent(database.TableNames(newTables))
 				return nil
 			})
 		}()
@@ -263,11 +263,11 @@ func changeDatabase(g *gocui.Gui, dbname Database) {
 
 func onSelectTable(g *gocui.Gui) func(table string) {
 	return func(table string) {
-		changeTable(g, Table(table))
+		changeTable(g, database.Table(table))
 	}
 }
 
-func changeTable(g *gocui.Gui, table Table) {
+func changeTable(g *gocui.Gui, table database.Table) {
 	if table == "" {
 		return
 	}
@@ -278,7 +278,7 @@ func changeTable(g *gocui.Gui, table Table) {
 		go func() {
 			resultsPane.View.HasLoader = true
 			resultsPane.Clear()
-			result, err := db.Query(Query(query))
+			result, err := db.Query(database.Query(query))
 			resultsPane.View.HasLoader = false
 			if !handleError(err) {
 				resultsPane.SetContent(result.Columns, result.Data)
@@ -327,10 +327,10 @@ func currentLineSelect(g *gocui.Gui, v *gocui.View) error {
 	switch v.Name() {
 	case "Databases":
 		dbName, _ := v.Line(currentLine)
-		changeDatabase(g, Database(dbName))
+		changeDatabase(g, database.Database(dbName))
 	case "Tables":
 		table, _ := v.Line(currentLine)
-		changeTable(g, Table(table))
+		changeTable(g, database.Table(table))
 	}
 	return nil
 }

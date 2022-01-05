@@ -1,4 +1,4 @@
-package driver
+package database
 
 import (
 	"database/sql"
@@ -8,11 +8,11 @@ import (
 )
 
 type mysqlDriver struct {
-	BaseDriver
+	baseDriver
 	config *mysql.Config
 }
 
-func NewMysqlDriver(dsn Dsn) (DatabaseDriver, error) {
+func NewMysqlDriver(dsn Dsn) (Driver, error) {
 	config := mysql.NewConfig()
 	port := dsn.Port
 	if port == "" {
@@ -29,7 +29,7 @@ func NewMysqlDriver(dsn Dsn) (DatabaseDriver, error) {
 
 	driver := &mysqlDriver{
 		config: config,
-		BaseDriver: BaseDriver{
+		baseDriver: baseDriver{
 			Db: sql.OpenDB(connector),
 		},
 	}

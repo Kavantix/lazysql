@@ -1,4 +1,4 @@
-package driver
+package database
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type Query string
 type Database string
 type Table string
 
-type DatabaseDriver interface {
+type Driver interface {
 	// Databases queries the connected instance for which databases exist
 	Databases() ([]Database, error)
 
@@ -44,7 +44,7 @@ type DatabaseDriver interface {
 	CancelQuery() bool
 }
 
-type BaseDriver struct {
+type baseDriver struct {
 	currentQuery Query
 	Db           *sql.DB
 	context      context.Context
@@ -52,7 +52,7 @@ type BaseDriver struct {
 	queryMutex   sync.Mutex
 }
 
-func (b *BaseDriver) CurrentQuery() Query {
+func (b *baseDriver) CurrentQuery() Query {
 	return b.currentQuery
 }
 
@@ -66,7 +66,7 @@ func TableNames(tables []Table) []string {
 	return *(*[]string)(unsafe.Pointer(&tables))
 }
 
-func (b *BaseDriver) CancelQuery() bool {
+func (b *baseDriver) CancelQuery() bool {
 	b.queryMutex.Lock()
 	defer b.queryMutex.Unlock()
 	if b.cancelFunc != nil {
@@ -77,7 +77,7 @@ func (b *BaseDriver) CancelQuery() bool {
 	}
 }
 
-func (b *BaseDriver) Query(query Query) (*QueryResult, error) {
+func (b *baseDriver) Query(query Query) (*QueryResult, error) {
 	b.queryMutex.Lock()
 	if b.cancelFunc != nil {
 		b.cancelFunc()
