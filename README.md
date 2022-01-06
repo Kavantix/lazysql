@@ -37,5 +37,7 @@ An example can be found in `.env.example`
 - [ ] Improved query editor
     - [x] Basic VIM emulation
     - [x] Undo and Redo
+    - [ ] Basic auto complete (keywords, tables, columns)
+    - [ ] Advanced auto complete (suggestions based on existing query using chroma lexer)
     - [ ] Advanced VIM emulation
 - [ ] Highlight current table based on query
