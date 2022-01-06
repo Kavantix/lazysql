@@ -27,17 +27,25 @@ An example can be found in `.env.example`
 - [x] Highlight current database
 - [ ] Hosts pane
 - [ ] Configuring connections from UI
-- [ ] Interactive values pane
+- [ ] Interactive results pane
     - [X] Moving around with hjkl/arrows
-    - [ ] Moving around with mouse
-    - [ ] Editing fields
-    - [ ] Resize columns to content/type
+    - [x] Moving around with mouse
+    - [ ] Selecting rows to copy
+    - [ ] Editing results
+    - [ ] Resize columns manually and or to content/type
 - [x] Loading indicator for the query that is running
 - [ ] Resizable panes
-- [ ] Improved query editor
+- [ ] Query editor
     - [x] Basic VIM emulation
     - [x] Undo and Redo
+    - [ ] Line numbers
+    - [ ] Scrolling
+    - [ ] Execute query button (instead of enter in normal mode)
+    - [ ] Mouse selection
     - [ ] Basic auto complete (keywords, tables, columns)
     - [ ] Advanced auto complete (suggestions based on existing query using chroma lexer)
     - [ ] Advanced VIM emulation
 - [ ] Highlight current table based on query
+- [ ] Help panes like lazygit
+- [ ] Searching in panes (databases, tables, results, ...)
+
