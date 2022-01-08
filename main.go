@@ -196,7 +196,7 @@ func layout(g *gocui.Gui) error {
 	tablesPane.Paint()
 	resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
 	resultsPane.Paint()
-	queryEditor.Position(maxX/3, 0, maxX-2, 6)
+	queryEditor.Position(maxX/3, 0, maxX-1, 6)
 	queryEditor.Paint()
 	if g.CurrentView().Name() == "Query" {
 		g.Cursor = true

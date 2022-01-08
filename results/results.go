@@ -160,11 +160,9 @@ func (r *ResultsPane) mouseDown(g *gocui.Gui, v *gocui.View) (err error) {
 	if cx > len(header)-2 {
 		return
 	}
-	headerToCursor := header[:cx]
-	columnCount := strings.Count(headerToCursor, "|")
+	headerToCursor := string([]rune(header)[:cx])
+	columnCount := strings.Count(headerToCursor, "│")
 	r.setCursor(columnCount-1+r.xOffset, cy+r.yOffset)
-
-	gocui.EventLog = append(gocui.EventLog, header)
 
 	return
 }
@@ -221,7 +219,7 @@ func (r *ResultsPane) Paint() {
 		return
 	}
 	r.View.Clear()
-	if len(r.columnNames) == 0 || len(r.rows) == 0 {
+	if len(r.columnNames) == 0 {
 		return
 	}
 	sx, sy := r.View.Size()
@@ -273,7 +271,12 @@ func (r *ResultsPane) Paint() {
 	line := strings.Builder{}
 	cell := strings.Builder{}
 
-	for y := r.yOffset; y < rows; y += 1 {
+	firstRow := r.yOffset
+	if firstRow < 0 {
+		firstRow = 0
+	}
+
+	for y := firstRow; y < rows; y += 1 {
 		line.Reset()
 		nrString := fmt.Sprint(y + 1)
 		line.WriteString(boldBrightCyan(nrString))
@@ -293,7 +296,11 @@ func (r *ResultsPane) Paint() {
 			}
 
 			if y == r.cursorY && x == r.cursorX {
-				line.WriteString(styleSelectedCell(cell.String()))
+				if y%2 == 0 {
+					line.WriteString(styleSelectedCell(cell.String(), 0))
+				} else {
+					line.WriteString(styleSelectedCell(cell.String(), 236))
+				}
 			} else {
 				line.WriteString(cell.String())
 			}
@@ -302,9 +309,14 @@ func (r *ResultsPane) Paint() {
 				line.WriteString(boldBrightCyan(delimiter))
 			}
 		}
+		if y%2 == 0 {
+			r.View.SetCurrentBgColor(gocui.ColorBlack)
+		} else {
+			r.View.SetCurrentBgColor(gocui.Get256Color(236))
+		}
 		fmt.Fprintln(r.View, line.String())
 	}
-	fmt.Fprintln(r.View, boldBrightCyan(verticalDelimiter.String()))
+	fmt.Fprintln(r.View, boldBrightCyan(strings.ReplaceAll(verticalDelimiter.String(), "┼", "┴")))
 	r.dirty = false
 }
 
@@ -355,17 +367,17 @@ func (r *ResultsPane) setCursor(offsetX, offsetY int) {
 
 func boldBrightCyan(text string) string {
 	// choose color mode ; 256 color mode ; dark blue ; bold
-	return fmt.Sprintf("\x1b[38;5;6;1m%s\x1b[0m", text)
+	return fmt.Sprintf("\x1b[38;5;6;1m%s\x1b[38;5;7m", text)
 }
 
 func grey(text string) string {
 	// choose color mode ; 256 color mode ; dark blue ; bold
-	return fmt.Sprintf("\x1b[38;5;7m%s\x1b[0m", text)
+	return fmt.Sprintf("\x1b[38;5;7m%s\x1b[38;5;7m", text)
 }
 
-func styleSelectedCell(text string) string {
+func styleSelectedCell(text string, currentBg int) string {
 	// choose color mode ; 256 color mode ; color ; bold
-	return fmt.Sprintf("\x1b[48;5;5;38;5;15;1m%s\x1b[0m", text)
+	return fmt.Sprintf("\x1b[48;5;5;38;5;15;1m%s\x1b[48;5;%d;38;5;7m", text, currentBg)
 }
 
 func (r *ResultsPane) copyCell(g *gocui.Gui, v *gocui.View) error {
