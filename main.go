@@ -93,6 +93,8 @@ func main() {
 	g.Highlight = true
 	g.SetManagerFunc(layout)
 
+	fmt.Print("\x1b]0;lazysql\a")
+
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
@@ -249,6 +251,7 @@ func changeDatabase(g *gocui.Gui, dbname database.Database) {
 			if handleError(db.SelectDatabase(dbname)) {
 				return
 			}
+			fmt.Printf("\x1b]0;lazysql (%s)\a", dbname)
 			newTables, err := db.Tables()
 			if handleError(err) {
 				return
