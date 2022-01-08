@@ -234,31 +234,32 @@ func (r *ResultsPane) Paint() {
 	}
 
 	r.amountOfVisibleColumns = availableSize / columnWidth
-	delimiter := '|'
+	delimiter := "│"
 
 	verticalDelimiter := strings.Builder{}
 	{
 		header := strings.Builder{}
-		header.WriteString(strings.Repeat(" ", numberSize))
-		header.WriteRune(delimiter)
-		verticalDelimiter.WriteString(strings.Repeat("-", numberSize))
-		verticalDelimiter.WriteRune('+')
+		header.WriteString(boldBrightCyan("#"))
+		header.WriteString(boldBrightCyan(strings.Repeat(" ", numberSize-1)))
+		header.WriteString(boldBrightCyan(delimiter))
+		verticalDelimiter.WriteString(strings.Repeat("─", numberSize))
+		verticalDelimiter.WriteString(boldBrightCyan("┼"))
 		for i := r.xOffset; i < len(r.columnNames); i++ {
 			column := r.columnNames[i]
 			if len(column) > columnWidth {
-				header.WriteString(bold(column[:columnWidth]))
+				header.WriteString(boldBrightCyan(column[:columnWidth]))
 			} else {
-				header.WriteString(bold(column))
+				header.WriteString(boldBrightCyan(column))
 				header.WriteString(strings.Repeat(" ", columnWidth-len(column)))
 			}
-			verticalDelimiter.WriteString(strings.Repeat("-", columnWidth))
+			verticalDelimiter.WriteString(boldBrightCyan(strings.Repeat("─", columnWidth)))
 			if i < len(r.columnNames)-1 {
-				header.WriteRune(delimiter)
-				verticalDelimiter.WriteRune('+')
+				header.WriteString(boldBrightCyan(delimiter))
+				verticalDelimiter.WriteString(boldBrightCyan("┼"))
 			}
 		}
 		fmt.Fprintln(r.View, header.String())
-		fmt.Fprintln(r.View, bold(verticalDelimiter.String()))
+		fmt.Fprintln(r.View, boldBrightCyan(verticalDelimiter.String()))
 	}
 
 	rows := sy - 2
@@ -275,9 +276,9 @@ func (r *ResultsPane) Paint() {
 	for y := r.yOffset; y < rows; y += 1 {
 		line.Reset()
 		nrString := fmt.Sprint(y + 1)
-		line.WriteString(bold(nrString))
+		line.WriteString(boldBrightCyan(nrString))
 		line.WriteString(strings.Repeat(" ", numberSize-len(nrString)))
-		line.WriteString(bold(string(delimiter)))
+		line.WriteString(boldBrightCyan(string(delimiter)))
 		rowLength := r.rows[y]
 		for x := r.xOffset; x < len(rowLength); x++ {
 			column := r.rows[y][x]
@@ -298,12 +299,12 @@ func (r *ResultsPane) Paint() {
 			}
 
 			if x < len(r.columnNames)-1 {
-				line.WriteRune(delimiter)
+				line.WriteString(boldBrightCyan(delimiter))
 			}
 		}
 		fmt.Fprintln(r.View, line.String())
 	}
-	fmt.Fprintln(r.View, bold(verticalDelimiter.String()))
+	fmt.Fprintln(r.View, boldBrightCyan(verticalDelimiter.String()))
 	r.dirty = false
 }
 
@@ -352,19 +353,19 @@ func (r *ResultsPane) setCursor(offsetX, offsetY int) {
 	}
 }
 
-func bold(text string) string {
+func boldBrightCyan(text string) string {
 	// choose color mode ; 256 color mode ; dark blue ; bold
-	return fmt.Sprintf("\x1b[0;1m%s\x1b[0m", text)
+	return fmt.Sprintf("\x1b[38;5;6;1m%s\x1b[0m", text)
 }
 
 func grey(text string) string {
 	// choose color mode ; 256 color mode ; dark blue ; bold
-	return fmt.Sprintf("\x1b[38;5;251m%s\x1b[0m", text)
+	return fmt.Sprintf("\x1b[38;5;7m%s\x1b[0m", text)
 }
 
 func styleSelectedCell(text string) string {
 	// choose color mode ; 256 color mode ; color ; bold
-	return fmt.Sprintf("\x1b[48;5;54m\x1b[38;5;15;1m%s\x1b[0m", text)
+	return fmt.Sprintf("\x1b[48;5;5;38;5;15;1m%s\x1b[0m", text)
 }
 
 func (r *ResultsPane) copyCell(g *gocui.Gui, v *gocui.View) error {

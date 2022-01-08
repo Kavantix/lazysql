@@ -87,7 +87,9 @@ func main() {
 	}
 	handleError(err)
 
-	g.SelFrameColor = gocui.ColorGreen
+	g.FrameColor = gocui.ColorWhite
+	g.SelFrameColor = gocui.ColorCyan + 8
+	g.SelFgColor = gocui.ColorWhite + 8 + gocui.AttrBold
 	g.Highlight = true
 	g.SetManagerFunc(layout)
 

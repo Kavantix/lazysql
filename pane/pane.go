@@ -162,7 +162,7 @@ func darkBlue(text string) string {
 
 func boldDarkBlue(text string) string {
 	// choose color mode ; 256 color mode ; dark blue ; bold
-	return fmt.Sprintf("\x1b[38;5;45;1m%s\x1b[0m", text)
+	return fmt.Sprintf("\x1b[38;4;6;1m%s\x1b[0m", text)
 }
 
 func (p *Pane) Paint() {
@@ -173,15 +173,16 @@ func (p *Pane) Paint() {
 		item := p.content[index]
 		underCursor := p.g.CurrentView() == p.View && p.cursor == index
 		selected := p.Selected == item
-		if underCursor && selected {
-			fmt.Fprintln(p.View, boldDarkBlue(item))
-		} else if selected {
-			fmt.Fprintln(p.View, darkBlue(item))
-		} else if underCursor {
-			fmt.Fprintln(p.View, bold(item))
-		} else {
-			fmt.Fprintln(p.View, grey(item))
+		color := gocui.ColorWhite
+		if selected {
+			color = gocui.ColorCyan
 		}
+		if underCursor {
+			color = (color + 8) | gocui.AttrBold
+		}
+		p.View.SetCurrentFgColor(color)
+		p.View.SetCurrentBgColor(gocui.ColorDefault)
+		p.View.WriteString(item + "\n")
 	}
 }
 

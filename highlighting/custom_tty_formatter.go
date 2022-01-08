@@ -35,14 +35,14 @@ var ttyTables = map[int]*ttyTable{
 		foreground: map[chroma.Colour]string{
 			c("#000000"): "\033[30m", c("#7f0000"): "\033[31m", c("#007f00"): "\033[32m", c("#7f7fe0"): "\033[33m",
 			c("#00007f"): "\033[34m", c("#7f007f"): "\033[35m", c("#007f7f"): "\033[36m", c("#e5e5e5"): "\033[37m",
-			c("#555555"): "\033[90m", c("#ff0000"): "\033[91m", c("#00ff00"): "\033[92m", c("#ffff00"): "\033[93m",
-			c("#0000ff"): "\033[94m", c("#ff00ff"): "\033[95m", c("#00ffff"): "\033[96m", c("#ffffff"): "\033[97m",
+			c("#555555"): "\033[38;5;8m", c("#ff0000"): "\033[38;5;9m", c("#00ff00"): "\033[38;5;10m", c("#ffff00"): "\033[38;5;11m",
+			c("#0000ff"): "\033[38;5;12m", c("#ff00ff"): "\033[38;13;5m", c("#00ffff"): "\033[38;5;14m", c("#ffffff"): "\033[38;5;15m",
 		},
 		background: map[chroma.Colour]string{
-			c("#000000"): "\033[40m", c("#7f0000"): "\033[41m", c("#007f00"): "\033[42m", c("#7f7fe0"): "\033[43m",
-			c("#00007f"): "\033[44m", c("#7f007f"): "\033[45m", c("#007f7f"): "\033[46m", c("#e5e5e5"): "\033[47m",
-			c("#555555"): "\033[100m", c("#ff0000"): "\033[101m", c("#00ff00"): "\033[102m", c("#ffff00"): "\033[103m",
-			c("#0000ff"): "\033[104m", c("#ff00ff"): "\033[105m", c("#00ffff"): "\033[106m", c("#ffffff"): "\033[107m",
+			c("#000000"): "\033[48;5;0m", c("#7f0000"): "\033[48;5;1m", c("#007f00"): "\033[48;5;2m", c("#7f7fe0"): "\033[48;5;3m",
+			c("#00007f"): "\033[48;5;4m", c("#7f007f"): "\033[48;5;5m", c("#007f7f"): "\033[48;5;6m", c("#e5e5e5"): "\033[48;5;7m",
+			c("#555555"): "\033[48;5;8m", c("#ff0000"): "\033[48;5;9m", c("#00ff00"): "\033[48;5;10m", c("#ffff00"): "\033[48;5;11m",
+			c("#0000ff"): "\033[48;5;12m", c("#ff00ff"): "\033[48;5;13m", c("#00ffff"): "\033[48;5;14m", c("#ffffff"): "\033[48;5;15m",
 		},
 	},
 	256: {
@@ -196,6 +196,7 @@ func entryToEscapeSequence(table *ttyTable, entry chroma.StyleEntry) string {
 		out += table.foreground[findClosest(table, entry.Colour)]
 	}
 	if entry.Background.IsSet() {
+		out += "\033[1m"
 		out += table.background[findClosest(table, entry.Background)]
 	}
 	return out
@@ -229,7 +230,7 @@ func clearBackground(style *chroma.Style, selected bool) *chroma.Style {
 	builder := style.Builder()
 	bg := builder.Get(chroma.Background)
 	if selected {
-		bg.Background = 0x515151
+		bg.Background = 0x555555
 	} else {
 		bg.Background = 0
 	}
@@ -315,10 +316,10 @@ func (c *customTTYFormatter) Format(w io.Writer, style *chroma.Style, it chroma.
 // TTY256 is a 256-colour terminal formatter.
 //
 // The Lab colour space is used to map RGB values to the most appropriate index colour.
-var CustomTTY256 = formatters.Register(CustomFormatter.Name(), CustomFormatter)
+var CustomTTY = formatters.Register(CustomFormatter.Name(), CustomFormatter)
 
-var CustomFormatter = &customTTYFormatter{table: ttyTables[256]}
+var CustomFormatter = &customTTYFormatter{table: ttyTables[16]}
 
 func (c *customTTYFormatter) Name() string {
-	return "customTerminal256"
+	return "customTerminal"
 }
