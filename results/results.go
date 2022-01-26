@@ -22,19 +22,26 @@ type ResultsPane struct {
 	xOffset, yOffset         int
 	cursorX, cursorY         int
 	amountOfVisibleColumns   int
+	columnContentView        *gocui.View
 }
 
 func NewResultsPane(g *gocui.Gui) *ResultsPane {
 	view, _ := g.SetView("Results", 0, 0, 1, 1, 0)
 	view.Visible = true
 	view.Title = view.Name()
+	columnContentView, _ := g.SetView("Results_ColumnContent", 0, 0, 1, 1, 0)
+	g.SetViewOnBottom(columnContentView.Name())
+	columnContentView.Visible = false
+	columnContentView.Wrap = true
+	view.Visible = true
 	r := &ResultsPane{
-		Name:        view.Name(),
-		columnNames: make([]string, 0),
-		rows:        make([][]string, 0),
-		View:        view,
-		g:           g,
-		dirty:       true,
+		Name:              view.Name(),
+		columnNames:       make([]string, 0),
+		rows:              make([][]string, 0),
+		View:              view,
+		g:                 g,
+		dirty:             true,
+		columnContentView: columnContentView,
 	}
 	g.SetKeybinding(r.Name, gocui.MouseLeft, gocui.ModNone, r.mouseDown)
 	g.SetKeybinding(r.Name, gocui.MouseWheelDown, gocui.ModNone, r.moveDown)
@@ -55,9 +62,51 @@ func NewResultsPane(g *gocui.Gui) *ResultsPane {
 	g.SetKeybinding("", gocui.KeyCtrlK, gocui.ModNone, r.moveUp)
 	g.SetKeybinding("", gocui.KeyCtrlTilde, gocui.ModNone, r.moveUp)
 	g.SetKeybinding("", 'j', gocui.ModAlt, r.moveDown)
-	g.SetKeybinding("", 'k', gocui.ModAlt, r.moveUp)
+	g.SetKeybinding(r.Name, 'k', gocui.ModAlt, r.moveUp)
+	g.SetKeybinding(r.Name, 'K', gocui.ModNone, r.showColumnContent)
+	g.SetKeybinding(r.columnContentView.Name(), gocui.KeyEsc, gocui.ModNone, r.hideColumnContent)
+	g.SetKeybinding(r.columnContentView.Name(), gocui.MouseLeft, gocui.ModNone, r.hideColumnContent)
+	g.SetKeybinding(r.columnContentView.Name(), gocui.MouseLeft, gocui.ModMouseCtrl, r.hideColumnContent)
+	g.SetKeybinding(r.columnContentView.Name(), gocui.MouseLeft, gocui.ModAlt, r.hideColumnContent)
+	g.SetKeybinding(r.columnContentView.Name(), gocui.MouseLeft, gocui.ModShift, r.hideColumnContent)
+	g.SetKeybinding(r.columnContentView.Name(), gocui.KeyEnter, gocui.ModNone, r.hideColumnContent)
 	r.unfocus(g, view)
 	return r
+}
+
+func (r *ResultsPane) showColumnContent(g *gocui.Gui, v *gocui.View) error {
+	if len(r.rows) <= 0 {
+		return nil
+	}
+
+	r.columnContentView.Title = fmt.Sprintf("#%d %s", r.cursorY+1, r.columnNames[r.cursorX])
+	content := strings.Split(strings.ReplaceAll(r.rows[r.cursorY][r.cursorX], "\r", ""), "\n")
+	r.columnContentView.Clear()
+	maxLength := len(fmt.Sprintf("%d", len(content)))
+	for i, line := range content {
+		number := fmt.Sprintf("%d", i+1)
+		repeatCount := maxLength - len(number)
+		if repeatCount < 0 {
+			repeatCount = 0
+		}
+		r.columnContentView.SetCurrentFgColor(gocui.ColorCyan)
+		r.columnContentView.WriteString(strings.Repeat(" ", repeatCount) + number + "│ ")
+		r.columnContentView.SetCurrentFgColor(gocui.ColorDefault)
+		r.columnContentView.WriteString(line)
+		r.columnContentView.WriteString("\n")
+	}
+	r.columnContentView.Visible = true
+	g.SetViewOnTop(r.columnContentView.Name())
+	g.SetCurrentView(r.columnContentView.Name())
+
+	return nil
+}
+
+func (r *ResultsPane) hideColumnContent(g *gocui.Gui, v *gocui.View) error {
+	r.columnContentView.Visible = false
+	g.SetViewOnBottom(r.columnContentView.Name())
+	r.Select()
+	return nil
 }
 
 func (r *ResultsPane) unfocus(g *gocui.Gui, v *gocui.View) error {
@@ -66,6 +115,7 @@ func (r *ResultsPane) unfocus(g *gocui.Gui, v *gocui.View) error {
 	g.DeleteKeybinding(r.Name, 'j', gocui.ModNone)
 	g.DeleteKeybinding(r.Name, 'k', gocui.ModNone)
 	g.DeleteKeybinding(r.Name, gocui.KeySpace, gocui.ModNone)
+	g.DeleteKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone)
 	g.SetKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone, r.focus)
 	return nil
 }
@@ -73,6 +123,7 @@ func (r *ResultsPane) unfocus(g *gocui.Gui, v *gocui.View) error {
 func (r *ResultsPane) focus(g *gocui.Gui, v *gocui.View) error {
 	r.Select()
 	g.DeleteKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone)
+	g.SetKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone, r.showColumnContent)
 	g.SetKeybinding(r.Name, 'h', gocui.ModNone, r.moveLeft)
 	g.SetKeybinding(r.Name, 'l', gocui.ModNone, r.moveRight)
 	g.SetKeybinding(r.Name, 'j', gocui.ModNone, r.moveDown)
@@ -162,7 +213,12 @@ func (r *ResultsPane) mouseDown(g *gocui.Gui, v *gocui.View) (err error) {
 	}
 	headerToCursor := string([]rune(header)[:cx])
 	columnCount := strings.Count(headerToCursor, "│")
-	r.setCursor(columnCount-1+r.xOffset, cy+r.yOffset)
+	newCursorX, newCursorY := columnCount-1+r.xOffset, cy+r.yOffset
+	if r.cursorX == newCursorX && r.cursorY == newCursorY {
+		r.showColumnContent(g, v)
+	} else {
+		r.setCursor(newCursorX, newCursorY)
+	}
 
 	return
 }
@@ -190,6 +246,9 @@ func (r *ResultsPane) SetContent(columnNames []string, rows [][]string) (err err
 
 func (r *ResultsPane) Position(left, top, right, bottom int) {
 	r.View.Visible = true
+	if r.columnContentView.Visible && r.g.CurrentView() != r.columnContentView {
+		r.hideColumnContent(r.g, r.columnContentView)
+	}
 	if r.left != left || r.top != top || r.right != right || r.bottom != bottom {
 		r.dirty = true
 		r.left = left
@@ -197,6 +256,30 @@ func (r *ResultsPane) Position(left, top, right, bottom int) {
 		r.top = top
 		r.bottom = bottom
 		r.g.SetView(r.Name, left, top, right, bottom, 0)
+		r.g.SetView(r.columnContentView.Name(), left+1, top+5, right-1, bottom-5, 0)
+	}
+	if r.columnContentView.Visible {
+		contentHeight := r.columnContentView.ViewLinesHeight()
+		if contentHeight < 4 {
+			contentHeight = 4
+		}
+		if contentHeight%2 != 0 {
+			contentHeight += 1
+		}
+		viewHeight := bottom - top
+		if viewHeight%2 != 0 {
+			viewHeight += 1
+		}
+		middle := viewHeight / 2
+		contentTop := top + middle - contentHeight/2
+		if contentTop < top+4 {
+			contentTop = top + 4
+		}
+		contentBottom := contentTop + contentHeight
+		if contentBottom > bottom-2 {
+			contentBottom = bottom - 2
+		}
+		r.g.SetView(r.columnContentView.Name(), left+1, contentTop, right-1, contentBottom, 0)
 	}
 }
 

@@ -184,12 +184,6 @@ func layout(g *gocui.Gui) error {
 		footerView.Frame = false
 		footerView.WriteString("Footer")
 	}
-	if footerView, err := g.View("Footer"); err == nil {
-		footerView.Clear()
-		if len(gocui.EventLog) > 0 {
-			footerView.WriteString(gocui.EventLog[len(gocui.EventLog)-1])
-		}
-	}
 	databasesPane.Position(0, 0, maxX/3-1, maxY/2-1)
 	databasesPane.Paint()
 	tablesPane.Position(0, maxY/2, maxX/3-1, maxY-2)
@@ -227,6 +221,12 @@ func layout(g *gocui.Gui) error {
 	} else {
 		errorView.Visible = false
 		g.SetViewOnBottom(errorView.Name())
+	}
+	if footerView, err := g.View("Footer"); err == nil {
+		footerView.Clear()
+		if len(gocui.EventLog) > 0 {
+			footerView.WriteString(gocui.EventLog[len(gocui.EventLog)-1])
+		}
 	}
 	return nil
 }
