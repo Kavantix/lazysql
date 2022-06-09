@@ -15,11 +15,12 @@ type textBox struct {
 	next    func()
 }
 
-func newTextBox(g *gocui.Gui, name string, next func()) (*textBox, error) {
+func newTextBox(g *gocui.Gui, name, initialValue string, next func()) (*textBox, error) {
 	textBox := &textBox{
 		name: "__TextBox__ " + name,
 		g:    g,
 		next: next,
+    content: initialValue,
 	}
 	var err error
 	textBox.view, err = g.SetView(textBox.name, 0, 0, 1, 1, 0)

@@ -13,16 +13,17 @@ type dbConfig struct {
 }
 
 type ConfigPane struct {
-	Name     string
-	view     *gocui.View
-	g        *gocui.Gui
-	dbConfig dbConfig
+	Name      string
+	view      *gocui.View
+	g         *gocui.Gui
+	dbConfig  dbConfig
+	onConnect func(host, port, user, password string)
 
 	hostTextBox, portTextBox, userTextBox, passwordTextBox *textBox
 	connectButton                                          *button
 }
 
-func NewConfigPane() (*ConfigPane, error) {
+func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPane, error) {
 	hostname, hasHostname := os.LookupEnv("HOSTNAME")
 	if !hasHostname {
 		hostname = "localhost"
@@ -32,7 +33,8 @@ func NewConfigPane() (*ConfigPane, error) {
 	password := os.Getenv("PASSWORD")
 
 	configPane := &ConfigPane{
-		Name: "ConfigPane",
+		Name:      "ConfigPane",
+		onConnect: onConnect,
 	}
 	configPane.dbConfig = dbConfig{
 		Host:     hostname,
@@ -58,21 +60,26 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 	})
 	g.SetCurrentView(c.Name)
 
-	c.hostTextBox, _ = newTextBox(g, "Host", func() {
+	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, func() {
 		g.SetCurrentView(c.portTextBox.name)
 	})
-	c.portTextBox, _ = newTextBox(g, "Port", func() {
+	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, func() {
 		g.SetCurrentView(c.userTextBox.name)
 	})
-	c.userTextBox, _ = newTextBox(g, "Username", func() {
+	c.userTextBox, _ = newTextBox(g, "Username", c.dbConfig.User, func() {
 		g.SetCurrentView(c.passwordTextBox.name)
 	})
-	c.passwordTextBox, _ = newTextBox(g, "Password", func() {
+	c.passwordTextBox, _ = newTextBox(g, "Password", c.dbConfig.Password, func() {
 		g.SetCurrentView(c.Name)
 	})
 
 	c.connectButton, _ = newButton(g, "Connect", func() {
-		panic("TODO CONNECTING")
+		c.onConnect(
+			c.hostTextBox.content,
+			c.portTextBox.content,
+			c.userTextBox.content,
+			c.passwordTextBox.content,
+		)
 	})
 	return err
 }

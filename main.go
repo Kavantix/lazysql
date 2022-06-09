@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Kavantix/lazysql/config"
 	"github.com/Kavantix/lazysql/database"
 	. "github.com/Kavantix/lazysql/pane"
 	. "github.com/Kavantix/lazysql/results"
@@ -48,8 +49,6 @@ var databases []database.Database
 var selectedDatabase database.Database
 var selectedTable database.Table
 
-var currentLine int
-
 var databasesPane, tablesPane, queryPane *Pane
 var resultsPane *ResultsPane
 var errorView *gocui.View
@@ -64,40 +63,46 @@ func main() {
 	checkErr(err)
 	defer g.Close()
 	g.Mouse = true
-
-	hostname, hasHostname := os.LookupEnv("HOSTNAME")
-	if !hasHostname {
-		hostname = "localhost"
-	}
-	port, _ := os.LookupEnv("PORT")
-	user, hasUser := os.LookupEnv("DBUSER")
-	if !hasUser {
-		panic("No user specified")
-	}
-	password := os.Getenv("PASSWORD")
-
-	db, err = database.NewMysqlDriver(database.Dsn{
-		Host:     hostname,
-		Port:     port,
-		User:     user,
-		Password: password,
-	})
-	if !handleError(err) {
-		databases, err = db.Databases()
-	}
-	handleError(err)
-
 	g.FrameColor = gocui.ColorWhite
 	g.SelFrameColor = gocui.ColorCyan + 8
 	g.SelFgColor = gocui.ColorWhite + 8 + gocui.AttrBold
 	g.Highlight = true
-	g.SetManagerFunc(layout)
 
-	fmt.Print("\x1b]0;lazysql\a")
+	configPane, err := config.NewConfigPane(func(host, port, user, password string) {
+		var err error
+		db, err = database.NewMysqlDriver(database.Dsn{
+			Host:     host,
+			Port:     port,
+			User:     user,
+			Password: password,
+		})
+		if !handleError(err) {
+			databases, err = db.Databases()
+			handleError(err)
+			showDatabaseLayout(g)
+		}
+	})
+	checkErr(err)
+	g.SetManagerFunc(configPane.Layout)
+	err = configPane.Init(g)
+	checkErr(err)
+	// whatever(g)
 
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
+
+	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+		log.Panicln(err)
+	}
+}
+
+func showDatabaseLayout(g *gocui.Gui) {
+	var err error
+
+	g.SetManagerFunc(layout)
+
+	fmt.Print("\x1b]0;lazysql\a")
 
 	if err := g.SetKeybinding("", 'q', gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
@@ -151,9 +156,6 @@ func main() {
 	tablesPane.OnSelectItem(onSelectTable(g))
 	// resultsPane = NewPane(g, "Results")
 
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.Panicln(err)
-	}
 }
 
 func bold(text string) string {
@@ -314,30 +316,6 @@ func Max(x, y int) int {
 	} else {
 		return y
 	}
-}
-
-func currentLineDown(g *gocui.Gui, v *gocui.View) error {
-	// v, _ = g.View(currentView)
-	numLines := v.LinesHeight()
-	currentLine = Min(numLines-1, currentLine+1)
-	return nil
-}
-
-func currentLineUp(g *gocui.Gui, v *gocui.View) error {
-	currentLine = Max(0, currentLine-1)
-	return nil
-}
-
-func currentLineSelect(g *gocui.Gui, v *gocui.View) error {
-	switch v.Name() {
-	case "Databases":
-		dbName, _ := v.Line(currentLine)
-		changeDatabase(g, database.Database(dbName))
-	case "Tables":
-		table, _ := v.Line(currentLine)
-		changeTable(g, database.Table(table))
-	}
-	return nil
 }
 
 func currentViewDown(g *gocui.Gui, v *gocui.View) error {
