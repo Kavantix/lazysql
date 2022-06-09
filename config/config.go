@@ -19,6 +19,7 @@ type ConfigPane struct {
 	dbConfig dbConfig
 
 	hostTextBox, portTextBox, userTextBox, passwordTextBox *textBox
+	connectButton                                          *button
 }
 
 func NewConfigPane() (*ConfigPane, error) {
@@ -69,6 +70,10 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 	c.passwordTextBox, _ = newTextBox(g, "Password", func() {
 		g.SetCurrentView(c.Name)
 	})
+
+	c.connectButton, _ = newButton(g, "Connect", func() {
+		panic("TODO CONNECTING")
+	})
 	return err
 }
 
@@ -83,6 +88,8 @@ func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	c.portTextBox.layout(6, 8, maxX-6, 10)
 	c.userTextBox.layout(6, 11, maxX-6, 13)
 	c.passwordTextBox.layout(6, 14, maxX-6, 16)
+
+	c.connectButton.layout(maxX/2, maxY-6)
 
 	return nil
 }
