@@ -13,7 +13,7 @@ type dbConfig struct {
 }
 
 type ConfigPane struct {
-	Name      string
+	name      string
 	view      *gocui.View
 	g         *gocui.Gui
 	dbConfig  dbConfig
@@ -33,7 +33,7 @@ func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPa
 	password := os.Getenv("PASSWORD")
 
 	configPane := &ConfigPane{
-		Name:      "ConfigPane",
+		name:      "ConfigPane",
 		onConnect: onConnect,
 	}
 	configPane.dbConfig = dbConfig{
@@ -47,47 +47,71 @@ func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPa
 
 func (c *ConfigPane) Init(g *gocui.Gui) error {
 	var err error
-	c.view, err = g.SetView(c.Name, 0, 0, 20, 3, 0)
+	c.g = g
+	c.view, err = g.SetView(c.name, 0, 0, 20, 3, 0)
 	if err != gocui.ErrUnknownView {
 		return errors.New("failed to create configpane")
 	} else {
 		err = nil
 	}
 	c.view.Title = "Config"
-	g.SetKeybinding(c.Name, 'n', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(c.name, gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		g.SetCurrentView(c.hostTextBox.name)
 		return nil
 	})
-	g.SetCurrentView(c.Name)
+	g.SetKeybinding(c.name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		g.SetCurrentView(c.connectButton.name)
+		return nil
+	})
+	g.SetCurrentView(c.name)
 
-	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, func() {
-		g.SetCurrentView(c.portTextBox.name)
-	})
-	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, func() {
-		g.SetCurrentView(c.userTextBox.name)
-	})
-	c.userTextBox, _ = newTextBox(g, "Username", c.dbConfig.User, func() {
-		g.SetCurrentView(c.passwordTextBox.name)
-	})
-	c.passwordTextBox, _ = newTextBox(g, "Password", c.dbConfig.Password, func() {
-		g.SetCurrentView(c.Name)
-	})
+	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, c.selectSelf, c.selectPort)
+	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, c.selectHost, c.selectUser)
+	c.userTextBox, _ = newTextBox(g, "Username", c.dbConfig.User, c.selectPort, c.selectPassword)
+	c.passwordTextBox, _ = newTextBox(g, "Password", c.dbConfig.Password, c.selectUser, c.selectConnect)
 
-	c.connectButton, _ = newButton(g, "Connect", func() {
-		c.onConnect(
-			c.hostTextBox.content,
-			c.portTextBox.content,
-			c.userTextBox.content,
-			c.passwordTextBox.content,
-		)
-	})
+	c.connectButton, _ = newButton(g, "Connect",
+		c.selectPassword,
+		c.selectSelf,
+		func() {
+			c.onConnect(
+				c.hostTextBox.content,
+				c.portTextBox.content,
+				c.userTextBox.content,
+				c.passwordTextBox.content,
+			)
+		})
 	return err
+}
+
+func (c *ConfigPane) selectSelf() {
+	c.g.SetCurrentView(c.name)
+}
+
+func (c *ConfigPane) selectHost() {
+	c.g.SetCurrentView(c.hostTextBox.name)
+}
+
+func (c *ConfigPane) selectPort() {
+	c.g.SetCurrentView(c.portTextBox.name)
+}
+
+func (c *ConfigPane) selectUser() {
+	c.g.SetCurrentView(c.userTextBox.name)
+}
+
+func (c *ConfigPane) selectPassword() {
+	c.g.SetCurrentView(c.passwordTextBox.name)
+}
+
+func (c *ConfigPane) selectConnect() {
+	c.g.SetCurrentView(c.connectButton.name)
 }
 
 func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
-	_, err := g.SetView(c.Name, 3, 2, maxX-4, maxY-3, 0)
+	_, err := g.SetView(c.name, 3, 2, maxX-4, maxY-3, 0)
 	if err != nil {
 		panic(err)
 	}
