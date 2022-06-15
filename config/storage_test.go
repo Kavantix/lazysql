@@ -42,4 +42,24 @@ func TestUnmarshalHosts(t *testing.T) {
 		host2.Password != "doesntmatter" {
 		t.Fatalf("Incorrect host2 parsed `%#v`", host2)
 	}
+
+	outputYaml := marshalHosts(hosts)
+
+	if outputYaml !=
+		`hosts:
+  name1:
+    name: name1
+    host: fwfw
+    port: "3306"
+    user: gggg
+    password: doesntmatter
+  name2:
+    name: name2
+    host: localhost
+    port: "3306"
+    user: gggg
+    password: doesntmatter
+` {
+		t.Fatalf("Marshaling failed!\n output yaml:`\n%s`\ninstead of:\n`%s`", outputYaml, yaml)
+	}
 }

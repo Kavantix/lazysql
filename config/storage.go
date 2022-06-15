@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
 	"os"
@@ -42,12 +43,16 @@ func LoadHosts() ([]Host, error) {
 }
 
 func marshalHosts(hosts []Host) string {
-	result, err := yaml.Marshal(hostsToYamlNode(hosts))
+	node := hostsToYamlNode(hosts)
+	buffer := bytes.Buffer{}
+	encoder := yaml.NewEncoder(&buffer)
+	encoder.SetIndent(2)
+	err := encoder.Encode(node)
 
 	if err != nil {
 		panic(err)
 	}
-	return string(result)
+	return buffer.String()
 }
 
 func hostsToYamlNode(hosts []Host) *yaml.Node {
