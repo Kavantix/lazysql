@@ -41,7 +41,11 @@ func newButton(g *gocui.Gui, name string, previous, next, onPressed func()) (*bu
 		button.next()
 		return nil
 	})
-	g.SetKeybinding(button.name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(button.name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		button.next()
+		return nil
+	})
+	g.SetKeybinding(button.name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		button.previous()
 		return nil
 	})

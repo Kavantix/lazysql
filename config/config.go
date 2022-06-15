@@ -59,7 +59,15 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		g.SetCurrentView(c.hostTextBox.name)
 		return nil
 	})
+	g.SetKeybinding(c.name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		g.SetCurrentView(c.hostTextBox.name)
+		return nil
+	})
 	g.SetKeybinding(c.name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		g.SetCurrentView(c.connectButton.name)
+		return nil
+	})
+	g.SetKeybinding(c.name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		g.SetCurrentView(c.connectButton.name)
 		return nil
 	})

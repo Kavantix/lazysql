@@ -58,9 +58,9 @@ func (t *textBox) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier
 		if t.cursor < len(t.content) {
 			t.cursor += 1
 		}
-	case gocui.KeyEnter, gocui.KeyArrowDown:
+	case gocui.KeyEnter, gocui.KeyArrowDown, gocui.KeyCtrlJ:
 		t.next()
-	case gocui.KeyArrowUp:
+	case gocui.KeyArrowUp, gocui.KeyCtrlK:
 		t.previous()
 	case gocui.KeyBackspace, gocui.KeyBackspace2:
 		if len(content) > 0 && t.cursor > 0 {
