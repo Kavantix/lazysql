@@ -48,13 +48,11 @@ func TestUnmarshalHosts(t *testing.T) {
 	if outputYaml !=
 		`hosts:
   name1:
-    name: name1
     host: fwfw
     port: "3306"
     user: gggg
     password: doesntmatter
   name2:
-    name: name2
     host: localhost
     port: "3306"
     user: gggg

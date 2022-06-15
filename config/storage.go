@@ -64,6 +64,7 @@ func hostsToYamlNode(hosts []Host) *yaml.Node {
 		}
 		hostNodes[(i*2)+1] = &yaml.Node{}
 		hostNodes[(i*2)+1].Encode(host)
+		hostNodes[(i*2)+1].Content = hostNodes[(i*2)+1].Content[2:]
 	}
 	return &yaml.Node{
 		Kind: yaml.MappingNode,
