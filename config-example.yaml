@@ -1,0 +1,6 @@
+hosts:
+  NameOfHost:
+    host: example.com
+    port: 3306
+    user: admin
+    password: secret
