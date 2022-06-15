@@ -41,6 +41,40 @@ func LoadHosts() ([]Host, error) {
 	return unmarshalHosts([]byte(filecontent))
 }
 
+func marshalHosts(hosts []Host) string {
+	result, err := yaml.Marshal(hostsToYamlNode(hosts))
+
+	if err != nil {
+		panic(err)
+	}
+	return string(result)
+}
+
+func hostsToYamlNode(hosts []Host) *yaml.Node {
+	hostNodes := make([]*yaml.Node, len(hosts)*2)
+	for i, host := range hosts {
+		hostNodes[i*2] = &yaml.Node{
+			Kind:  yaml.ScalarNode,
+			Value: host.Name,
+		}
+		hostNodes[(i*2)+1] = &yaml.Node{}
+		hostNodes[(i*2)+1].Encode(host)
+	}
+	return &yaml.Node{
+		Kind: yaml.MappingNode,
+		Content: []*yaml.Node{
+			{
+				Kind:  yaml.ScalarNode,
+				Value: "hosts",
+			},
+			{
+				Kind:    yaml.MappingNode,
+				Content: hostNodes,
+			},
+		},
+	}
+}
+
 func unmarshalHosts(filecontent []byte) (result []Host, err error) {
 	var node yaml.Node
 	err = yaml.Unmarshal(filecontent, &node)
