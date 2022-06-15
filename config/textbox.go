@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/awesome-gocui/gocui"
+	"github.com/mattn/go-runewidth"
 )
 
 type textBox struct {
@@ -13,9 +14,10 @@ type textBox struct {
 	content        string
 	cursor         int
 	next, previous func()
+	obscured       bool
 }
 
-func newTextBox(g *gocui.Gui, name, initialValue string, previous, next func()) (*textBox, error) {
+func newTextBox(g *gocui.Gui, name, initialValue string, obscured bool, previous, next func()) (*textBox, error) {
 	textBox := &textBox{
 		name:     "__TextBox__ " + name,
 		g:        g,
@@ -23,6 +25,7 @@ func newTextBox(g *gocui.Gui, name, initialValue string, previous, next func()) 
 		next:     next,
 		content:  initialValue,
 		cursor:   len(initialValue),
+		obscured: obscured,
 	}
 	var err error
 	textBox.view, err = g.SetView(textBox.name, 0, 0, 1, 1, 0)
@@ -42,7 +45,13 @@ func newTextBox(g *gocui.Gui, name, initialValue string, previous, next func()) 
 func (t *textBox) layout(left, top, right, bottom int) {
 	t.g.SetView(t.name, left, top, right, bottom, 0)
 	t.view.Clear()
-	t.view.WriteString(t.content)
+	length := runewidth.StringWidth(t.content)
+	if t.obscured {
+
+		t.view.WriteString(strings.Repeat("*", length))
+	} else {
+		t.view.WriteString(t.content)
+	}
 	t.g.Cursor = strings.Index(t.g.CurrentView().Name(), "__TextBox__") == 0
 	t.view.SetCursor(t.cursor, 0)
 }

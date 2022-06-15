@@ -73,10 +73,10 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 	})
 	g.SetCurrentView(c.name)
 
-	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, c.selectSelf, c.selectPort)
-	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, c.selectHost, c.selectUser)
-	c.userTextBox, _ = newTextBox(g, "Username", c.dbConfig.User, c.selectPort, c.selectPassword)
-	c.passwordTextBox, _ = newTextBox(g, "Password", c.dbConfig.Password, c.selectUser, c.selectConnect)
+	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, false, c.selectSelf, c.selectPort)
+	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, false, c.selectHost, c.selectUser)
+	c.userTextBox, _ = newTextBox(g, "Username", c.dbConfig.User, false, c.selectPort, c.selectPassword)
+	c.passwordTextBox, _ = newTextBox(g, "Password", c.dbConfig.Password, true, c.selectUser, c.selectConnect)
 
 	c.connectButton, _ = newButton(g, "Connect",
 		c.selectPassword,
