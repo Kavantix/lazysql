@@ -2,9 +2,8 @@ package config
 
 import (
 	"errors"
+	"io/fs"
 	"os"
-
-	// "fmt"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,8 +17,25 @@ type Host struct {
 }
 
 func LoadHosts() ([]Host, error) {
-	var filecontent, err = os.ReadFile("./config.yaml")
+	homedir, err := os.UserHomeDir()
 	if err != nil {
+		return nil, err
+	}
+	err = os.MkdirAll(pathTo(homedir, ".config", "lazysql"), os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+	filepath := pathTo(homedir, ".config", "lazysql", "config.yaml")
+	filecontent, err := os.ReadFile(filepath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return []Host{
+				{
+					Host: "localhost",
+					Port: "3306",
+				},
+			}, nil
+		}
 		return nil, err
 	}
 	return unmarshalHosts([]byte(filecontent))
@@ -58,6 +74,17 @@ func unmarshalHosts(filecontent []byte) (result []Host, err error) {
 		}
 	}
 
+	return
+}
+
+func pathTo(pathComponents ...string) (result string) {
+	separator := string(os.PathSeparator)
+	for i, component := range pathComponents {
+		if i != 0 {
+			result += separator
+		}
+		result += component
+	}
 	return
 }
 
