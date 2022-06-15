@@ -53,6 +53,9 @@ func unmarshalHosts(filecontent []byte) (result []Host, err error) {
 			return
 		}
 		result[i].Name = node.key
+		if len(result[i].Host) == 0 {
+			result[i].Host = "localhost"
+		}
 	}
 
 	return

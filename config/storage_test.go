@@ -12,20 +12,34 @@ func TestUnmarshalHosts(t *testing.T) {
       port: 3306
       user: gggg
       password: doesntmatter
+    name2:
+      host:
+      port: 3306
+      user: gggg
+      password: doesntmatter
   `
 
 	hosts, err := unmarshalHosts([]byte(yaml))
 	if err != nil {
 		t.Fatalf("Unexpected error while ummarshaling %s", err)
 	}
-	if len(hosts) != 1 {
+	if len(hosts) != 2 {
 		t.Fatalf("Wrong number of hosts: %d", len(hosts))
 	}
 	host1 := hosts[0]
 	if host1.Name != "name1" ||
+		host1.Host != "fwfw" ||
 		host1.Port != "3306" ||
 		host1.User != "gggg" ||
 		host1.Password != "doesntmatter" {
-		t.Fatalf("Incorrect host parsed `%#v`", host1)
+		t.Fatalf("Incorrect host1 parsed `%#v`", host1)
+	}
+	host2 := hosts[1]
+	if host2.Name != "name2" ||
+		host2.Host != "localhost" ||
+		host2.Port != "3306" ||
+		host2.User != "gggg" ||
+		host2.Password != "doesntmatter" {
+		t.Fatalf("Incorrect host2 parsed `%#v`", host2)
 	}
 }

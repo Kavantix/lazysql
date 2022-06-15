@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"os"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -24,23 +23,21 @@ type ConfigPane struct {
 }
 
 func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPane, error) {
-	hostname, hasHostname := os.LookupEnv("HOSTNAME")
-	if !hasHostname {
-		hostname = "localhost"
+
+	hosts, err := LoadHosts()
+	if err != nil {
+		return nil, err
 	}
-	port, _ := os.LookupEnv("PORT")
-	user, _ := os.LookupEnv("DBUSER")
-	password := os.Getenv("PASSWORD")
 
 	configPane := &ConfigPane{
 		name:      "ConfigPane",
 		onConnect: onConnect,
 	}
 	configPane.dbConfig = dbConfig{
-		Host:     hostname,
-		Port:     port,
-		User:     user,
-		Password: password,
+		Host:     hosts[0].Host,
+		Port:     hosts[0].Port,
+		User:     hosts[0].User,
+		Password: hosts[0].Password,
 	}
 	return configPane, nil
 }
