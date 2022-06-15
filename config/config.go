@@ -71,7 +71,6 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		g.SetCurrentView(c.connectButton.name)
 		return nil
 	})
-	g.SetCurrentView(c.name)
 
 	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, false, c.selectSelf, c.selectPort)
 	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, false, c.selectHost, c.selectUser)
@@ -89,6 +88,8 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 				c.passwordTextBox.content,
 			)
 		})
+
+	g.SetCurrentView(c.connectButton.name)
 	return err
 }
 
