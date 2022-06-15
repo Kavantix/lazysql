@@ -9,8 +9,8 @@ A [lazygit](https://github.com/jesseduffield/lazygit) inspired terminal sql clie
 
 ## Config
 
-The config for the client should be put in a `~/.config/lazysql/config.yaml` file.
-An example can be found in `config-example.yaml`
+The config for the client should be put in a `~/.config/lazysql/hosts.yaml` file.
+An example can be found in `hosts-example.yaml`
 
 ## TODO
 

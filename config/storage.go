@@ -26,7 +26,7 @@ func LoadHosts() ([]Host, error) {
 	if err != nil {
 		return nil, err
 	}
-	filepath := pathTo(homedir, ".config", "lazysql", "config.yaml")
+	filepath := pathTo(homedir, ".config", "lazysql", "hosts.yaml")
 	filecontent, err := os.ReadFile(filepath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
