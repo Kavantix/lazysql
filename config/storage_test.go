@@ -6,18 +6,18 @@ import (
 
 func TestUnmarshalHosts(t *testing.T) {
 	yaml := `
-  hosts:
-    name1:
-      host: fwfw
-      port: 3306
-      user: gggg
-      password: doesntmatter
-    name2:
-      host:
-      port: 3306
-      user: gggg
-      password: doesntmatter
-  `
+hosts:
+  name1:
+    host: fwfw
+    port: 3306
+    user: gggg
+    password: doesntmatter
+  name2:
+    host:
+    port: 3306
+    user: gggg
+    password: doesntmatter
+`
 
 	hosts, err := unmarshalHosts([]byte(yaml))
 	if err != nil {
@@ -45,8 +45,8 @@ func TestUnmarshalHosts(t *testing.T) {
 
 	outputYaml := marshalHosts(hosts)
 
-	if outputYaml !=
-		`hosts:
+	expectedYaml := `
+hosts:
   name1:
     host: fwfw
     port: "3306"
@@ -57,7 +57,8 @@ func TestUnmarshalHosts(t *testing.T) {
     port: "3306"
     user: gggg
     password: doesntmatter
-` {
-		t.Fatalf("Marshaling failed!\n output yaml:`\n%s`\ninstead of:\n`%s`", outputYaml, yaml)
+`[1:] // remove starting newline
+	if outputYaml != expectedYaml {
+		t.Fatalf("Marshaling failed!\n output yaml:`\n%s`\ninstead of:`\n%s`", outputYaml, expectedYaml)
 	}
 }
