@@ -81,6 +81,7 @@ func hostsToYamlNode(hosts []Host) *yaml.Node {
 	}
 }
 
+// TODO check that host names are unique
 func unmarshalHosts(filecontent []byte) (result []Host, err error) {
 	var node yaml.Node
 	err = yaml.Unmarshal(filecontent, &node)

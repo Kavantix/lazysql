@@ -42,7 +42,7 @@ func newTextBox(g *gocui.Gui, name, initialValue string, obscured bool, previous
 	return textBox, nil
 }
 
-func (t *textBox) layout(left, top, right, bottom int) {
+func (t *textBox) Layout(left, top, right, bottom int) {
 	t.g.SetView(t.name, left, top, right, bottom, 0)
 	t.view.Clear()
 	length := runewidth.StringWidth(t.content)
@@ -86,4 +86,11 @@ func (t *textBox) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier
 		t.cursor += 1
 	}
 	t.content = content
+}
+
+func (t *textBox) SetContent(content string) {
+	t.g.Update(func(g *gocui.Gui) error {
+		t.content = content
+		return nil
+	})
 }
