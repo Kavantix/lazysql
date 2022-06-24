@@ -7,6 +7,7 @@ import (
 )
 
 type dbConfig struct {
+	Name           string
 	Host, Port     string
 	User, Password string
 }
@@ -18,10 +19,11 @@ type ConfigPane struct {
 	dbConfig  dbConfig
 	onConnect func(host, port, user, password string)
 
-	hostTextBox, portTextBox, userTextBox, passwordTextBox *textBox
-	connectButton                                          *button
-	hostsPane                                              *Pane
-	hosts                                                  []Host
+	nameTextBox, hostTextBox, portTextBox *textBox
+	userTextBox, passwordTextBox          *textBox
+	connectButton                         *button
+	hostsPane                             *Pane
+	hosts                                 []Host
 }
 
 func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPane, error) {
@@ -84,7 +86,8 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		return nil
 	})
 
-	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, false, c.selectHostsPane, c.selectPort)
+	c.nameTextBox, _ = newTextBox(g, "Name", c.dbConfig.Name, false, c.selectHostsPane, c.selectHostTextbox)
+	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, false, c.selectNameTextbox, c.selectPort)
 	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, false, c.selectHostTextbox, c.selectUser)
 	c.userTextBox, _ = newTextBox(g, "Username", c.dbConfig.User, false, c.selectPort, c.selectPassword)
 	c.passwordTextBox, _ = newTextBox(g, "Password", c.dbConfig.Password, true, c.selectUser, c.selectConnect)
@@ -103,7 +106,7 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 
 	if len(hostNames) > 0 {
 		c.changeHost(hostNames[0])
-    c.hostsPane.Selected = hostNames[0]
+		c.hostsPane.Selected = hostNames[0]
 	}
 
 	g.SetCurrentView(c.connectButton.name)
@@ -112,6 +115,10 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 
 func (c *ConfigPane) selectHostsPane() {
 	c.g.SetCurrentView(c.hostsPane.Name)
+}
+
+func (c *ConfigPane) selectNameTextbox() {
+	c.g.SetCurrentView(c.nameTextBox.name)
 }
 
 func (c *ConfigPane) selectHostTextbox() {
@@ -138,12 +145,14 @@ func (c *ConfigPane) changeHost(hostName string) {
 	for _, host := range c.hosts {
 		if hostName == host.Name {
 			c.dbConfig = dbConfig{
+				Name:     hostName,
 				Host:     host.Host,
 				Port:     host.Port,
 				User:     host.User,
 				Password: host.Password,
 			}
 
+			c.nameTextBox.SetContent(c.dbConfig.Name)
 			c.hostTextBox.SetContent(c.dbConfig.Host)
 			c.portTextBox.SetContent(c.dbConfig.Port)
 			c.userTextBox.SetContent(c.dbConfig.User)
@@ -161,15 +170,16 @@ func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	if err != nil {
 		panic(err)
 	}
-	hostStartingPosition := maxY - 3 - 20 + 3
-	c.hostTextBox.Layout(6, hostStartingPosition, maxX-6, hostStartingPosition+2)
-	c.portTextBox.Layout(6, hostStartingPosition+3, maxX-6, hostStartingPosition+5)
-	c.userTextBox.Layout(6, hostStartingPosition+6, maxX-6, hostStartingPosition+8)
-	c.passwordTextBox.Layout(6, hostStartingPosition+9, maxX-6, hostStartingPosition+11)
+	start := maxY - 3 - 22 + 3
+	c.nameTextBox.Layout(6, start, maxX-6, start+2)
+	c.hostTextBox.Layout(6, start+3, maxX-6, start+5)
+	c.portTextBox.Layout(6, start+6, maxX-6, start+8)
+	c.userTextBox.Layout(6, start+9, maxX-6, start+11)
+	c.passwordTextBox.Layout(6, start+12, maxX-6, start+14)
 
 	c.connectButton.layout(maxX/2, maxY-6)
 
-	c.hostsPane.Position(6, 5, maxX-6, maxY-3-20)
+	c.hostsPane.Position(6, 5, maxX-6, maxY-3-22)
 	c.hostsPane.Paint()
 
 	return nil
