@@ -6,7 +6,7 @@ import (
 )
 
 type button struct {
-	name           string
+	Name           string
 	width          int
 	view           *gocui.View
 	g              *gocui.Gui
@@ -16,7 +16,7 @@ type button struct {
 
 func newButton(g *gocui.Gui, name string, previous, next, onPressed func()) (*button, error) {
 	button := &button{
-		name:      name,
+		Name:      name,
 		g:         g,
 		previous:  previous,
 		next:      next,
@@ -24,32 +24,37 @@ func newButton(g *gocui.Gui, name string, previous, next, onPressed func()) (*bu
 		width:     runewidth.StringWidth(name) + 6,
 	}
 	var err error
-	button.view, err = g.SetView(button.name, 0, 0, 1, 1, 0)
+	button.view, err = g.SetView(button.Name, 0, 0, 1, 1, 0)
 	button.view.WriteString("  " + name + "  ")
 	if err != gocui.ErrUnknownView {
 		return nil, err
 	}
-	g.SetKeybinding(button.name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(button.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		g.SetCurrentView(button.Name)
 		button.onPressed()
 		return nil
 	})
-	g.SetKeybinding(button.name, gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(button.Name, gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		button.onPressed()
 		return nil
 	})
-	g.SetKeybinding(button.name, gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(button.Name, gocui.KeySpace, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		button.onPressed()
+		return nil
+	})
+	g.SetKeybinding(button.Name, gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		button.next()
 		return nil
 	})
-	g.SetKeybinding(button.name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(button.Name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		button.next()
 		return nil
 	})
-	g.SetKeybinding(button.name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(button.Name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		button.previous()
 		return nil
 	})
-	g.SetKeybinding(button.name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	g.SetKeybinding(button.Name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		button.previous()
 		return nil
 	})
@@ -57,7 +62,7 @@ func newButton(g *gocui.Gui, name string, previous, next, onPressed func()) (*bu
 }
 
 func (b button) layout(middleX, middleY int) error {
-	b.g.SetView(b.name, middleX-(b.width/2), middleY-1, middleX+(b.width/2), middleY+1, 0)
+	b.g.SetView(b.Name, middleX-(b.width/2), middleY-1, middleX+(b.width/2), middleY+1, 0)
 
 	return nil
 }

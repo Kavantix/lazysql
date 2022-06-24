@@ -58,19 +58,19 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 	}
 	c.view.Title = "Config"
 	g.SetKeybinding(c.name, gocui.KeyArrowDown, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		g.SetCurrentView(c.hostTextBox.name)
+		g.SetCurrentView(c.hostTextBox.Name)
 		return nil
 	})
 	g.SetKeybinding(c.name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		g.SetCurrentView(c.hostTextBox.name)
+		g.SetCurrentView(c.hostTextBox.Name)
 		return nil
 	})
 	g.SetKeybinding(c.name, gocui.KeyArrowUp, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		g.SetCurrentView(c.connectButton.name)
+		g.SetCurrentView(c.connectButton.Name)
 		return nil
 	})
 	g.SetKeybinding(c.name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		g.SetCurrentView(c.connectButton.name)
+		g.SetCurrentView(c.connectButton.Name)
 		return nil
 	})
 
@@ -93,6 +93,17 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.selectConnect()
 		return nil
+	})
+	g.SetKeybinding(c.hostsPane.Name, gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		host, exists := c.hosts[c.hostsPane.Selected]
+		if !exists {
+			return nil
+		}
+		c.onConnect(host.Host, host.Port, host.User, host.Password)
+		return nil
+	})
+	g.SetKeybinding(c.hostsPane.Name, 'q', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		return gocui.ErrQuit
 	})
 
 	c.nameTextBox, _ = newTextBox(g, "Name", "", false, c.selectHostsPane, c.selectHostTextbox)
@@ -120,7 +131,7 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		c.hostsPane.Selected = hostNames[0]
 	}
 
-	g.SetCurrentView(c.connectButton.name)
+	g.SetCurrentView(c.hostsPane.Name)
 	return err
 }
 
@@ -133,31 +144,31 @@ func (c *ConfigPane) selectHostsPane() {
 }
 
 func (c *ConfigPane) selectNameTextbox() {
-	c.g.SetCurrentView(c.nameTextBox.name)
+	c.g.SetCurrentView(c.nameTextBox.Name)
 }
 
 func (c *ConfigPane) selectHostTextbox() {
-	c.g.SetCurrentView(c.hostTextBox.name)
+	c.g.SetCurrentView(c.hostTextBox.Name)
 }
 
 func (c *ConfigPane) selectPort() {
-	c.g.SetCurrentView(c.portTextBox.name)
+	c.g.SetCurrentView(c.portTextBox.Name)
 }
 
 func (c *ConfigPane) selectUser() {
-	c.g.SetCurrentView(c.userTextBox.name)
+	c.g.SetCurrentView(c.userTextBox.Name)
 }
 
 func (c *ConfigPane) selectPassword() {
-	c.g.SetCurrentView(c.passwordTextBox.name)
+	c.g.SetCurrentView(c.passwordTextBox.Name)
 }
 
 func (c *ConfigPane) selectConnect() {
-	c.g.SetCurrentView(c.connectButton.name)
+	c.g.SetCurrentView(c.connectButton.Name)
 }
 
 func (c *ConfigPane) selectSave() {
-	c.g.SetCurrentView(c.saveButton.name)
+	c.g.SetCurrentView(c.saveButton.Name)
 }
 
 func (c *ConfigPane) onSave() {
@@ -214,7 +225,7 @@ func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	if err != nil {
 		panic(err)
 	}
-	start := maxY - 3 - 22 + 3
+	start := maxY - 3 - 23 + 3
 	c.nameTextBox.Layout(6, start, maxX-6, start+2)
 	c.hostTextBox.Layout(6, start+3, maxX-6, start+5)
 	c.portTextBox.Layout(6, start+6, maxX-6, start+8)
@@ -224,7 +235,7 @@ func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	c.connectButton.layout(maxX/3, maxY-6)
 	c.saveButton.layout(maxX/3*2, maxY-6)
 
-	c.hostsPane.Position(6, 5, maxX-6, maxY-3-22)
+	c.hostsPane.Position(6, 4, maxX-6, maxY-3-22)
 	c.hostsPane.Paint()
 
 	return nil

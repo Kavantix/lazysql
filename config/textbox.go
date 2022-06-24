@@ -8,7 +8,7 @@ import (
 )
 
 type textBox struct {
-	name           string
+	Name           string
 	view           *gocui.View
 	g              *gocui.Gui
 	content        string
@@ -19,7 +19,7 @@ type textBox struct {
 
 func newTextBox(g *gocui.Gui, name, initialValue string, obscured bool, previous, next func()) (*textBox, error) {
 	textBox := &textBox{
-		name:     "__TextBox__ " + name,
+		Name:     "__TextBox__ " + name,
 		g:        g,
 		previous: previous,
 		next:     next,
@@ -28,22 +28,22 @@ func newTextBox(g *gocui.Gui, name, initialValue string, obscured bool, previous
 		obscured: obscured,
 	}
 	var err error
-	textBox.view, err = g.SetView(textBox.name, 0, 0, 1, 1, 0)
+	textBox.view, err = g.SetView(textBox.Name, 0, 0, 1, 1, 0)
 	if err != gocui.ErrUnknownView {
 		return nil, err
 	}
 	textBox.view.Title = name
 	textBox.view.Editor = textBox
 	textBox.view.Editable = true
-	g.SetKeybinding(textBox.name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		g.SetCurrentView(textBox.name)
+	g.SetKeybinding(textBox.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		g.SetCurrentView(textBox.Name)
 		return nil
 	})
 	return textBox, nil
 }
 
 func (t *textBox) Layout(left, top, right, bottom int) {
-	t.g.SetView(t.name, left, top, right, bottom, 0)
+	t.g.SetView(t.Name, left, top, right, bottom, 0)
 	t.view.Clear()
 	length := runewidth.StringWidth(t.content)
 	if t.obscured {

@@ -1,3 +1,4 @@
 .env
 log.txt
 config.yaml
+lazysql

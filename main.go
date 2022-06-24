@@ -53,7 +53,7 @@ var databasesPane, tablesPane, queryPane *Pane
 var resultsPane *ResultsPane
 var errorView *gocui.View
 var queryEditor *QueryEditor
- 
+
 var errorMessage error
 var previouslySelectedViewName string
 
@@ -80,8 +80,9 @@ func main() {
 		})
 		if !handleError(err) {
 			databases, err = db.Databases()
-			handleError(err)
-			showDatabaseLayout(g)
+			if !handleError(err) {
+				showDatabaseLayout(g)
+			}
 		}
 	})
 	configPane.SetErrorHandler(handleError)
@@ -95,11 +96,11 @@ func main() {
 			g.SetViewOnTop("errors")
 			errorView.Clear()
 			fmt.Fprint(errorView, errorMessage)
-      currentView := g.CurrentView() 
-      if (currentView.Name() != "errors" ) {
-      g.SetCurrentView("errors")
-      previouslySelectedViewName = currentView.Name()
-      }
+			currentView := g.CurrentView()
+			if currentView.Name() != "errors" {
+				g.SetCurrentView("errors")
+				previouslySelectedViewName = currentView.Name()
+			}
 		} else {
 			errorView.Visible = false
 			g.SetViewOnBottom(errorView.Name())
@@ -113,7 +114,7 @@ func main() {
 	errorView.Title = "Error"
 	if err := g.SetKeybinding("errors", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		errorMessage = nil
-    g.SetCurrentView(previouslySelectedViewName)
+		g.SetCurrentView(previouslySelectedViewName)
 		return nil
 	}); err != nil {
 		log.Panicln(err)
