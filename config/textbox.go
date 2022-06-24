@@ -76,6 +76,10 @@ func (t *textBox) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier
 			content = content[:t.cursor-1] + content[t.cursor:]
 			t.cursor -= 1
 		}
+	case gocui.KeyDelete:
+		if len(content) > 0 && t.cursor < len(content) {
+			content = content[:t.cursor] + content[t.cursor+1:]
+		}
 	}
 	if key == 0 || key == gocui.KeySpace {
 		if t.cursor >= len(content) {
@@ -91,6 +95,7 @@ func (t *textBox) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier
 func (t *textBox) SetContent(content string) {
 	t.g.Update(func(g *gocui.Gui) error {
 		t.content = content
+		t.cursor = len(content)
 		return nil
 	})
 }

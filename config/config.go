@@ -6,24 +6,18 @@ import (
 	"github.com/awesome-gocui/gocui"
 )
 
-type dbConfig struct {
-	Name           string
-	Host, Port     string
-	User, Password string
-}
-
 type ConfigPane struct {
-	name      string
-	view      *gocui.View
-	g         *gocui.Gui
-	dbConfig  dbConfig
-	onConnect func(host, port, user, password string)
+	name             string
+	view             *gocui.View
+	g                *gocui.Gui
+	selectedHostName string
+	onConnect        func(host, port, user, password string)
 
 	nameTextBox, hostTextBox, portTextBox *textBox
 	userTextBox, passwordTextBox          *textBox
 	connectButton                         *button
 	hostsPane                             *Pane
-	hosts                                 []Host
+	hosts                                 map[string]Host
 }
 
 func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPane, error) {
@@ -33,10 +27,15 @@ func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPa
 		return nil, err
 	}
 
+	hostsMap := make(map[string]Host, len(hosts))
+	for _, host := range hosts {
+		hostsMap[host.Name] = host
+	}
+
 	configPane := &ConfigPane{
 		name:      "ConfigPane",
 		onConnect: onConnect,
-		hosts:     hosts,
+		hosts:     hostsMap,
 	}
 	return configPane, nil
 }
@@ -68,14 +67,17 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		return nil
 	})
 
-	c.hostsPane = NewPane(g, "Hosts")
-
 	hostNames := make([]string, len(c.hosts))
-	for hostIndex, host := range c.hosts {
-		hostNames[hostIndex] = host.Name
+	{
+		c.hostsPane = NewPane(g, "Hosts")
+		hostIndex := 0
+		for hostName := range c.hosts {
+			hostNames[hostIndex] = hostName
+			hostIndex += 1
+		}
+		c.hostsPane.SetContent(hostNames)
+		c.hostsPane.OnSelectItem(c.changeHost)
 	}
-	c.hostsPane.SetContent(hostNames)
-	c.hostsPane.OnSelectItem(c.changeHost)
 
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.selectHostTextbox()
@@ -86,11 +88,11 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		return nil
 	})
 
-	c.nameTextBox, _ = newTextBox(g, "Name", c.dbConfig.Name, false, c.selectHostsPane, c.selectHostTextbox)
-	c.hostTextBox, _ = newTextBox(g, "Host", c.dbConfig.Host, false, c.selectNameTextbox, c.selectPort)
-	c.portTextBox, _ = newTextBox(g, "Port", c.dbConfig.Port, false, c.selectHostTextbox, c.selectUser)
-	c.userTextBox, _ = newTextBox(g, "Username", c.dbConfig.User, false, c.selectPort, c.selectPassword)
-	c.passwordTextBox, _ = newTextBox(g, "Password", c.dbConfig.Password, true, c.selectUser, c.selectConnect)
+	c.nameTextBox, _ = newTextBox(g, "Name", "", false, c.selectHostsPane, c.selectHostTextbox)
+	c.hostTextBox, _ = newTextBox(g, "Host", "", false, c.selectNameTextbox, c.selectPort)
+	c.portTextBox, _ = newTextBox(g, "Port", "", false, c.selectHostTextbox, c.selectUser)
+	c.userTextBox, _ = newTextBox(g, "Username", "", false, c.selectPort, c.selectPassword)
+	c.passwordTextBox, _ = newTextBox(g, "Password", "", true, c.selectUser, c.selectConnect)
 
 	c.connectButton, _ = newButton(g, "Connect",
 		c.selectPassword,
@@ -142,25 +144,17 @@ func (c *ConfigPane) selectConnect() {
 }
 
 func (c *ConfigPane) changeHost(hostName string) {
-	for _, host := range c.hosts {
-		if hostName == host.Name {
-			c.dbConfig = dbConfig{
-				Name:     hostName,
-				Host:     host.Host,
-				Port:     host.Port,
-				User:     host.User,
-				Password: host.Password,
-			}
-
-			c.nameTextBox.SetContent(c.dbConfig.Name)
-			c.hostTextBox.SetContent(c.dbConfig.Host)
-			c.portTextBox.SetContent(c.dbConfig.Port)
-			c.userTextBox.SetContent(c.dbConfig.User)
-			c.passwordTextBox.SetContent(c.dbConfig.Password)
-
-			break
-		}
+	host, ok := c.hosts[hostName]
+	if !ok {
+		return
 	}
+
+	c.selectedHostName = hostName
+	c.nameTextBox.SetContent(host.Name)
+	c.hostTextBox.SetContent(host.Host)
+	c.portTextBox.SetContent(host.Port)
+	c.userTextBox.SetContent(host.User)
+	c.passwordTextBox.SetContent(host.Password)
 }
 
 func (c *ConfigPane) Layout(g *gocui.Gui) error {
