@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -70,11 +71,11 @@ func main() {
 	g.SelFgColor = gocui.ColorWhite + 8 + gocui.AttrBold
 	g.Highlight = true
 
-	configPane, err := config.NewConfigPane(func(host, port, user, password string) {
+	configPane, err := config.NewConfigPane(func(host string, port int, user, password string) {
 		var err error
 		db, err = database.NewMysqlDriver(database.Dsn{
 			Host:     host,
-			Port:     port,
+			Port:     strconv.Itoa(port),
 			User:     user,
 			Password: password,
 		})
@@ -85,8 +86,8 @@ func main() {
 			}
 		}
 	})
+  checkErr(err)
 	configPane.SetErrorHandler(handleError)
-	checkErr(err)
 	g.SetManagerFunc(func(g *gocui.Gui) error {
 		err := configPane.Layout(g)
 		if errorMessage != nil {

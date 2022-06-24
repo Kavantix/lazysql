@@ -12,7 +12,7 @@ import (
 type Host struct {
 	Name     string
 	Host     string `yaml:"host"`
-	Port     string `yaml:"port"`
+	Port     int    `yaml:"port"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 }
@@ -33,7 +33,7 @@ func LoadHosts() ([]Host, error) {
 			return []Host{
 				{
 					Host: "localhost",
-					Port: "3306",
+					Port: 3306,
 				},
 			}, nil
 		}

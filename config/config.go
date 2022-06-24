@@ -2,6 +2,9 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
+
 	. "github.com/Kavantix/lazysql/pane"
 	"github.com/awesome-gocui/gocui"
 )
@@ -11,7 +14,7 @@ type ConfigPane struct {
 	view             *gocui.View
 	g                *gocui.Gui
 	selectedHostName string
-	onConnect        func(host, port, user, password string)
+	onConnect        func(host string, port int, user, password string)
 	handleError      func(err error) bool
 
 	nameTextBox, hostTextBox, portTextBox *textBox
@@ -21,11 +24,10 @@ type ConfigPane struct {
 	hosts                                 map[string]Host
 }
 
-func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPane, error) {
-
+func NewConfigPane(onConnect func(host string, port int, user, password string)) (*ConfigPane, error) {
 	hosts, err := LoadHosts()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Cannot load config file:\n%s\n", err)
 	}
 
 	hostsMap := make(map[string]Host, len(hosts))
@@ -116,9 +118,13 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		c.selectPassword,
 		c.selectSave,
 		func() {
+			port, err := strconv.Atoi(c.portTextBox.content)
+			if err != nil || port < 1 || port > 65535 {
+				c.handleError(errors.New("port should be a valid integer between 1 and 65535"))
+			}
 			c.onConnect(
 				c.hostTextBox.content,
-				c.portTextBox.content,
+				port,
 				c.userTextBox.content,
 				c.passwordTextBox.content,
 			)
@@ -177,10 +183,14 @@ func (c *ConfigPane) onSave() {
 		delete(c.hosts, c.selectedHostName)
 	}
 
+	port, err := strconv.Atoi(c.portTextBox.content)
+	if err != nil || port < 1 || port > 65535 {
+		c.handleError(errors.New("port should be a valid integer between 1 and 65535"))
+	}
 	host := Host{
 		Name:     c.nameTextBox.content,
 		Host:     c.hostTextBox.content,
-		Port:     c.portTextBox.content,
+		Port:     port,
 		User:     c.userTextBox.content,
 		Password: c.passwordTextBox.content,
 	}
@@ -201,7 +211,7 @@ func (c *ConfigPane) onSave() {
 
 	c.handleError(SaveHosts(hosts))
 	// TODO: show proper popup on success
-	c.handleError(errors.New("Saved successfully"))
+	c.handleError(errors.New("saved successfully"))
 }
 
 func (c *ConfigPane) changeHost(hostName string) {
@@ -213,7 +223,7 @@ func (c *ConfigPane) changeHost(hostName string) {
 	c.selectedHostName = hostName
 	c.nameTextBox.SetContent(host.Name)
 	c.hostTextBox.SetContent(host.Host)
-	c.portTextBox.SetContent(host.Port)
+	c.portTextBox.SetContent(strconv.Itoa(host.Port))
 	c.userTextBox.SetContent(host.User)
 	c.passwordTextBox.SetContent(host.Password)
 }
