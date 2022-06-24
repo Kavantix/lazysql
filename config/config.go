@@ -12,10 +12,11 @@ type ConfigPane struct {
 	g                *gocui.Gui
 	selectedHostName string
 	onConnect        func(host, port, user, password string)
+	handleError      func(err error) bool
 
 	nameTextBox, hostTextBox, portTextBox *textBox
 	userTextBox, passwordTextBox          *textBox
-	connectButton                         *button
+	connectButton, saveButton             *button
 	hostsPane                             *Pane
 	hosts                                 map[string]Host
 }
@@ -36,6 +37,12 @@ func NewConfigPane(onConnect func(host, port, user, password string)) (*ConfigPa
 		name:      "ConfigPane",
 		onConnect: onConnect,
 		hosts:     hostsMap,
+		handleError: func(err error) bool {
+			if err != nil {
+				panic(err)
+			}
+			return err != nil
+		},
 	}
 	return configPane, nil
 }
@@ -96,7 +103,7 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 
 	c.connectButton, _ = newButton(g, "Connect",
 		c.selectPassword,
-		c.selectHostsPane,
+		c.selectSave,
 		func() {
 			c.onConnect(
 				c.hostTextBox.content,
@@ -106,6 +113,8 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 			)
 		})
 
+	c.saveButton, _ = newButton(g, "Save", c.selectConnect, c.selectHostsPane, c.onSave)
+
 	if len(hostNames) > 0 {
 		c.changeHost(hostNames[0])
 		c.hostsPane.Selected = hostNames[0]
@@ -113,6 +122,10 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 
 	g.SetCurrentView(c.connectButton.name)
 	return err
+}
+
+func (c *ConfigPane) SetErrorHandler(handleError func(err error) bool) {
+	c.handleError = handleError
 }
 
 func (c *ConfigPane) selectHostsPane() {
@@ -143,6 +156,43 @@ func (c *ConfigPane) selectConnect() {
 	c.g.SetCurrentView(c.connectButton.name)
 }
 
+func (c *ConfigPane) selectSave() {
+	c.g.SetCurrentView(c.saveButton.name)
+}
+
+func (c *ConfigPane) onSave() {
+	_, exists := c.hosts[c.selectedHostName]
+	if exists {
+		delete(c.hosts, c.selectedHostName)
+	}
+
+	host := Host{
+		Name:     c.nameTextBox.content,
+		Host:     c.hostTextBox.content,
+		Port:     c.portTextBox.content,
+		User:     c.userTextBox.content,
+		Password: c.passwordTextBox.content,
+	}
+
+	_, exists = c.hosts[host.Name]
+	if exists {
+		c.handleError(errors.New("Host already exists"))
+		return
+	}
+
+	c.hosts[host.Name] = host
+	hosts := make([]Host, len(c.hosts))
+	index := 0
+	for _, host := range c.hosts {
+		hosts[index] = host
+		index += 1
+	}
+
+	c.handleError(SaveHosts(hosts))
+	// TODO: show proper popup on success
+	c.handleError(errors.New("Saved successfully"))
+}
+
 func (c *ConfigPane) changeHost(hostName string) {
 	host, ok := c.hosts[hostName]
 	if !ok {
@@ -171,7 +221,8 @@ func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	c.userTextBox.Layout(6, start+9, maxX-6, start+11)
 	c.passwordTextBox.Layout(6, start+12, maxX-6, start+14)
 
-	c.connectButton.layout(maxX/2, maxY-6)
+	c.connectButton.layout(maxX/3, maxY-6)
+	c.saveButton.layout(maxX/3*2, maxY-6)
 
 	c.hostsPane.Position(6, 5, maxX-6, maxY-3-22)
 	c.hostsPane.Paint()

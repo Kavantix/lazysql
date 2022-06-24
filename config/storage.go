@@ -42,6 +42,21 @@ func LoadHosts() ([]Host, error) {
 	return unmarshalHosts([]byte(filecontent))
 }
 
+func SaveHosts(hosts []Host) error {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(pathTo(homedir, ".config", "lazysql"), os.ModePerm)
+	if err != nil {
+		return err
+	}
+	filepath := pathTo(homedir, ".config", "lazysql", "hosts.yaml")
+	marshalledHosts := marshalHosts(hosts)
+	err = os.WriteFile(filepath, []byte(marshalledHosts), os.ModePerm)
+	return err
+}
+
 func marshalHosts(hosts []Host) string {
 	node := hostsToYamlNode(hosts)
 	buffer := bytes.Buffer{}

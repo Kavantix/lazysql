@@ -52,8 +52,10 @@ var selectedTable database.Table
 var databasesPane, tablesPane, queryPane *Pane
 var resultsPane *ResultsPane
 var errorView *gocui.View
-var errorMessage error
 var queryEditor *QueryEditor
+ 
+var errorMessage error
+var previouslySelectedViewName string
 
 func main() {
 	err := godotenv.Load()
@@ -82,10 +84,40 @@ func main() {
 			showDatabaseLayout(g)
 		}
 	})
+	configPane.SetErrorHandler(handleError)
 	checkErr(err)
-	g.SetManagerFunc(configPane.Layout)
+	g.SetManagerFunc(func(g *gocui.Gui) error {
+		err := configPane.Layout(g)
+		if errorMessage != nil {
+			maxX, maxY := g.Size()
+			errorView.Visible = true
+			g.SetView("errors", 4, 4, maxX-4, maxY-4, 0)
+			g.SetViewOnTop("errors")
+			errorView.Clear()
+			fmt.Fprint(errorView, errorMessage)
+      currentView := g.CurrentView() 
+      if (currentView.Name() != "errors" ) {
+      g.SetCurrentView("errors")
+      previouslySelectedViewName = currentView.Name()
+      }
+		} else {
+			errorView.Visible = false
+			g.SetViewOnBottom(errorView.Name())
+		}
+		return err
+	})
 	err = configPane.Init(g)
 	checkErr(err)
+	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
+	errorView.Visible = false
+	errorView.Title = "Error"
+	if err := g.SetKeybinding("errors", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		errorMessage = nil
+    g.SetCurrentView(previouslySelectedViewName)
+		return nil
+	}); err != nil {
+		log.Panicln(err)
+	}
 	// whatever(g)
 
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
