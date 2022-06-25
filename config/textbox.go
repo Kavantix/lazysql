@@ -80,8 +80,11 @@ func (t *textBox) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier
 		if len(content) > 0 && t.cursor < len(content) {
 			content = content[:t.cursor] + content[t.cursor+1:]
 		}
+	case gocui.KeySpace:
+		key = 0
+		ch = ' '
 	}
-	if key == 0 || key == gocui.KeySpace {
+	if key == 0 {
 		if t.cursor >= len(content) {
 			content += string(ch)
 		} else {

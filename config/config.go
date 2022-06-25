@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	. "github.com/Kavantix/lazysql/pane"
 	"github.com/awesome-gocui/gocui"
@@ -76,7 +77,7 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		return nil
 	})
 
-	hostNames := make([]string, len(c.hosts))
+	hostNames := make([]string, len(c.hosts)+1)
 	{
 		c.hostsPane = NewPane(g, "Hosts")
 		hostIndex := 0
@@ -84,12 +85,19 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 			hostNames[hostIndex] = hostName
 			hostIndex += 1
 		}
+		hostNames[hostIndex] = "  << New host >>  "
 		c.hostsPane.SetContent(hostNames)
-		c.hostsPane.OnSelectItem(c.changeHost)
+		c.hostsPane.OnSelectItem(func(item string) {
+			if item != c.selectedHostName {
+				c.changeHost(item)
+			} else {
+				c.selectNameTextbox()
+			}
+		})
 	}
 
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		c.selectHostTextbox()
+		c.selectNameTextbox()
 		return nil
 	})
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
@@ -123,10 +131,10 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 				c.handleError(errors.New("port should be a valid integer between 1 and 65535"))
 			}
 			c.onConnect(
-				c.hostTextBox.content,
+				strings.TrimSpace(c.hostTextBox.content),
 				port,
-				c.userTextBox.content,
-				c.passwordTextBox.content,
+				strings.TrimSpace(c.userTextBox.content),
+				strings.TrimSpace(c.passwordTextBox.content),
 			)
 		})
 
@@ -178,38 +186,57 @@ func (c *ConfigPane) selectSave() {
 }
 
 func (c *ConfigPane) onSave() {
-	_, exists := c.hosts[c.selectedHostName]
-	if exists {
-		delete(c.hosts, c.selectedHostName)
-	}
-
 	port, err := strconv.Atoi(c.portTextBox.content)
 	if err != nil || port < 1 || port > 65535 {
 		c.handleError(errors.New("port should be a valid integer between 1 and 65535"))
 	}
 	host := Host{
-		Name:     c.nameTextBox.content,
-		Host:     c.hostTextBox.content,
+		Name:     strings.TrimSpace(c.nameTextBox.content),
+		Host:     strings.TrimSpace(c.hostTextBox.content),
 		Port:     port,
-		User:     c.userTextBox.content,
-		Password: c.passwordTextBox.content,
+		User:     strings.TrimSpace(c.userTextBox.content),
+		Password: strings.TrimSpace(c.passwordTextBox.content),
 	}
 
-	_, exists = c.hosts[host.Name]
-	if exists {
+	if host.Name == "" {
+		c.handleError(errors.New("Host name cannot be empty"))
+		return
+	}
+
+	_, exists := c.hosts[host.Name]
+	if exists && host.Name != c.selectedHostName {
 		c.handleError(errors.New("Host already exists"))
 		return
 	}
 
+	_, exists = c.hosts[c.selectedHostName]
+	if exists && host.Name != c.selectedHostName {
+		delete(c.hosts, c.selectedHostName)
+	}
+
 	c.hosts[host.Name] = host
+
 	hosts := make([]Host, len(c.hosts))
 	index := 0
 	for _, host := range c.hosts {
 		hosts[index] = host
 		index += 1
 	}
+	if c.handleError(SaveHosts(hosts)) {
+		return
+	}
 
-	c.handleError(SaveHosts(hosts))
+	hostNames := make([]string, len(c.hosts)+1)
+	hostIndex := 0
+	for hostName := range c.hosts {
+		hostNames[hostIndex] = hostName
+		hostIndex += 1
+	}
+	hostNames[hostIndex] = "  << New host >>  "
+	c.hostsPane.SetContent(hostNames)
+	c.hostsPane.Selected = host.Name
+	c.selectedHostName = host.Name
+
 	// TODO: show proper popup on success
 	c.handleError(errors.New("saved successfully"))
 }
@@ -217,7 +244,9 @@ func (c *ConfigPane) onSave() {
 func (c *ConfigPane) changeHost(hostName string) {
 	host, ok := c.hosts[hostName]
 	if !ok {
-		return
+		host = Host{
+			Port: 3306,
+		}
 	}
 
 	c.selectedHostName = hostName

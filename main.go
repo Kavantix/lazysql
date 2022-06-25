@@ -86,7 +86,7 @@ func main() {
 			}
 		}
 	})
-  checkErr(err)
+	checkErr(err)
 	configPane.SetErrorHandler(handleError)
 	g.SetManagerFunc(func(g *gocui.Gui) error {
 		err := configPane.Layout(g)
