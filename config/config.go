@@ -10,19 +10,32 @@ import (
 	"github.com/awesome-gocui/gocui"
 )
 
+const newHostName = "  << New host >>  "
+
+func (h *Host) String() string {
+	return h.Name
+}
+
+func (h *Host) EqualsPaneable(other Paneable) bool {
+	if other == nil {
+		return false
+	}
+	return other.(*Host).Name == h.Name
+}
+
 type ConfigPane struct {
-	name             string
-	view             *gocui.View
-	g                *gocui.Gui
-	selectedHostName string
-	onConnect        func(host string, port int, user, password string)
-	handleError      func(err error) bool
+	name         string
+	view         *gocui.View
+	g            *gocui.Gui
+	selectedHost *Host
+	onConnect    func(host string, port int, user, password string)
+	handleError  func(err error) bool
 
 	nameTextBox, hostTextBox, portTextBox *textBox
 	userTextBox, passwordTextBox          *textBox
 	connectButton, saveButton             *button
-	hostsPane                             *Pane
-	hosts                                 map[string]Host
+	hostsPane                             *Pane[*Host]
+	hosts                                 []*Host
 }
 
 func NewConfigPane(onConnect func(host string, port int, user, password string)) (*ConfigPane, error) {
@@ -31,15 +44,10 @@ func NewConfigPane(onConnect func(host string, port int, user, password string))
 		return nil, fmt.Errorf("Cannot load config file:\n%s\n", err)
 	}
 
-	hostsMap := make(map[string]Host, len(hosts))
-	for _, host := range hosts {
-		hostsMap[host.Name] = host
-	}
-
 	configPane := &ConfigPane{
 		name:      "ConfigPane",
 		onConnect: onConnect,
-		hosts:     hostsMap,
+		hosts:     hosts,
 		handleError: func(err error) bool {
 			if err != nil {
 				panic(err)
@@ -77,18 +85,11 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		return nil
 	})
 
-	hostNames := make([]string, len(c.hosts)+1)
 	{
-		c.hostsPane = NewPane(g, "Hosts")
-		hostIndex := 0
-		for hostName := range c.hosts {
-			hostNames[hostIndex] = hostName
-			hostIndex += 1
-		}
-		hostNames[hostIndex] = "  << New host >>  "
-		c.hostsPane.SetContent(hostNames)
-		c.hostsPane.OnSelectItem(func(item string) {
-			if item != c.selectedHostName {
+		c.hostsPane = NewPane[*Host](g, "Hosts")
+		c.setHostsPaneContentWithDummy()
+		c.hostsPane.OnSelectItem(func(item *Host) {
+			if item != c.selectedHost {
 				c.changeHost(item)
 			} else {
 				c.selectNameTextbox()
@@ -105,10 +106,7 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		return nil
 	})
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		host, exists := c.hosts[c.hostsPane.Selected]
-		if !exists {
-			return nil
-		}
+		host := c.hostsPane.Selected
 		c.onConnect(host.Host, host.Port, host.User, host.Password)
 		return nil
 	})
@@ -140,13 +138,19 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 
 	c.saveButton, _ = newButton(g, "Save", c.selectConnect, c.selectHostsPane, c.onSave)
 
-	if len(hostNames) > 0 {
-		c.changeHost(hostNames[0])
-		c.hostsPane.Selected = hostNames[0]
+	if len(c.hosts) > 0 {
+		c.changeHost(c.hosts[0])
+		c.hostsPane.Selected = c.hosts[0]
 	}
 
 	g.SetCurrentView(c.hostsPane.Name)
 	return err
+}
+
+func (c *ConfigPane) setHostsPaneContentWithDummy() {
+	c.hostsPane.SetContent(append(c.hosts, &Host{
+		Name: newHostName,
+	}))
 }
 
 func (c *ConfigPane) SetErrorHandler(handleError func(err error) bool) {
@@ -203,56 +207,37 @@ func (c *ConfigPane) onSave() {
 		return
 	}
 
-	_, exists := c.hosts[host.Name]
-	if exists && host.Name != c.selectedHostName {
-		c.handleError(errors.New("Host already exists"))
+	if c.selectedHost == nil || c.selectedHost.Name == newHostName {
+		c.selectedHost = &host
+		c.hosts = append(c.hosts, &host)
+		c.hostsPane.Selected = &host
+	} else {
+		*c.selectedHost = host
+	}
+	if c.handleError(SaveHosts(c.hosts)) {
 		return
 	}
 
-	_, exists = c.hosts[c.selectedHostName]
-	if exists && host.Name != c.selectedHostName {
-		delete(c.hosts, c.selectedHostName)
-	}
-
-	c.hosts[host.Name] = host
-
-	hosts := make([]Host, len(c.hosts))
-	index := 0
-	for _, host := range c.hosts {
-		hosts[index] = host
-		index += 1
-	}
-	if c.handleError(SaveHosts(hosts)) {
-		return
-	}
-
-	hostNames := make([]string, len(c.hosts)+1)
-	hostIndex := 0
-	for hostName := range c.hosts {
-		hostNames[hostIndex] = hostName
-		hostIndex += 1
-	}
-	hostNames[hostIndex] = "  << New host >>  "
-	c.hostsPane.SetContent(hostNames)
-	c.hostsPane.Selected = host.Name
-	c.selectedHostName = host.Name
+	c.setHostsPaneContentWithDummy()
 
 	// TODO: show proper popup on success
 	c.handleError(errors.New("saved successfully"))
 }
 
-func (c *ConfigPane) changeHost(hostName string) {
-	host, ok := c.hosts[hostName]
-	if !ok {
-		host = Host{
-			Port: 3306,
+func (c *ConfigPane) changeHost(host *Host) {
+	c.selectedHost = host
+	if host.Name == newHostName {
+		c.nameTextBox.SetContent("")
+		c.portTextBox.SetContent("3306")
+	} else {
+		c.nameTextBox.SetContent(host.Name)
+		if host.Port == 0 {
+			c.portTextBox.SetContent("")
+		} else {
+			c.portTextBox.SetContent(strconv.Itoa(host.Port))
 		}
 	}
-
-	c.selectedHostName = hostName
-	c.nameTextBox.SetContent(host.Name)
 	c.hostTextBox.SetContent(host.Host)
-	c.portTextBox.SetContent(strconv.Itoa(host.Port))
 	c.userTextBox.SetContent(host.User)
 	c.passwordTextBox.SetContent(host.Password)
 }

@@ -17,7 +17,7 @@ type Host struct {
 	Password string `yaml:"password"`
 }
 
-func LoadHosts() ([]Host, error) {
+func LoadHosts() ([]*Host, error) {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func LoadHosts() ([]Host, error) {
 	filecontent, err := os.ReadFile(filepath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return []Host{
+			return []*Host{
 				{
 					Host: "localhost",
 					Port: 3306,
@@ -42,7 +42,7 @@ func LoadHosts() ([]Host, error) {
 	return unmarshalHosts([]byte(filecontent))
 }
 
-func SaveHosts(hosts []Host) error {
+func SaveHosts(hosts []*Host) error {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -57,7 +57,7 @@ func SaveHosts(hosts []Host) error {
 	return err
 }
 
-func marshalHosts(hosts []Host) string {
+func marshalHosts(hosts []*Host) string {
 	node := hostsToYamlNode(hosts)
 	buffer := bytes.Buffer{}
 	encoder := yaml.NewEncoder(&buffer)
@@ -70,7 +70,7 @@ func marshalHosts(hosts []Host) string {
 	return buffer.String()
 }
 
-func hostsToYamlNode(hosts []Host) *yaml.Node {
+func hostsToYamlNode(hosts []*Host) *yaml.Node {
 	hostNodes := make([]*yaml.Node, len(hosts)*2)
 	for i, host := range hosts {
 		hostNodes[i*2] = &yaml.Node{
@@ -97,7 +97,7 @@ func hostsToYamlNode(hosts []Host) *yaml.Node {
 }
 
 // TODO check that host names are unique
-func unmarshalHosts(filecontent []byte) (result []Host, err error) {
+func unmarshalHosts(filecontent []byte) (result []*Host, err error) {
 	var node yaml.Node
 	err = yaml.Unmarshal(filecontent, &node)
 	if err != nil {
@@ -114,7 +114,7 @@ func unmarshalHosts(filecontent []byte) (result []Host, err error) {
 	}
 
 	hostsNode, err := parsYamlMappingNode(node.Content[0].Content[1])
-	result = make([]Host, len(hostsNode))
+	result = make([]*Host, len(hostsNode))
 	for i, node := range hostsNode {
 		if node.value.Kind != yaml.MappingNode {
 			err = errors.New("hosts should be maps")

@@ -7,29 +7,33 @@ import (
 	"github.com/awesome-gocui/gocui"
 )
 
-type Pane struct {
+type Pane[T Paneable] struct {
 	Name         string
 	cursor       int
 	scrollOffset int
-	Selected     string
-	content      []string
+	Selected     T
+	content      []T
 	View         *gocui.View
 	g            *gocui.Gui
-	onSelectItem func(item string)
+	onSelectItem func(item T)
 }
 
-func NewPane(g *gocui.Gui, name string) *Pane {
+type Paneable interface {
+	String() string
+	EqualsPaneable(other Paneable) bool
+}
+
+func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 	view, _ := g.SetView(name, 0, 0, 1, 1, 0)
 	view.Visible = true
 	view.Title = name
-	p := &Pane{
+	p := &Pane[T]{
 		Name:         name,
 		cursor:       0,
 		scrollOffset: 0,
-		content:      make([]string, 0),
+		content:      make([]T, 0),
 		View:         view,
 		g:            g,
-		Selected:     "",
 	}
 	if err := g.SetKeybinding(name, gocui.KeySpace, gocui.ModNone, p.onSpace); err != nil {
 		log.Panicln(err)
@@ -63,12 +67,12 @@ func NewPane(g *gocui.Gui, name string) *Pane {
 	return p
 }
 
-func (p *Pane) selectItem(item string) {
+func (p *Pane[T]) selectItem(item T) {
 	p.Selected = item
 	p.onSelectItem(item)
 }
 
-func (p *Pane) onMouseLeft(g *gocui.Gui, v *gocui.View) error {
+func (p *Pane[T]) onMouseLeft(g *gocui.Gui, v *gocui.View) error {
 	p.Select()
 	_, cy := v.Cursor()
 	if cy+p.scrollOffset == p.cursor {
@@ -81,11 +85,11 @@ func (p *Pane) onMouseLeft(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func (p *Pane) SetCursor(cursor int) {
+func (p *Pane[T]) SetCursor(cursor int) {
 	p.cursor = p.limitCursor(cursor)
 }
 
-func (p *Pane) limitCursor(cursor int) (newCursor int) {
+func (p *Pane[T]) limitCursor(cursor int) (newCursor int) {
 	length := len(p.content)
 	if cursor >= length {
 		if length == 0 {
@@ -107,23 +111,23 @@ func (p *Pane) limitCursor(cursor int) (newCursor int) {
 	return
 }
 
-func (p *Pane) onCursorDown(g *gocui.Gui, v *gocui.View) error {
+func (p *Pane[T]) onCursorDown(g *gocui.Gui, v *gocui.View) error {
 	p.Select()
 	p.cursor = p.limitCursor(p.cursor + 1)
 	return nil
 }
-func (p *Pane) onCursorUp(g *gocui.Gui, v *gocui.View) error {
+func (p *Pane[T]) onCursorUp(g *gocui.Gui, v *gocui.View) error {
 	p.Select()
 	p.cursor = p.limitCursor(p.cursor - 1)
 	return nil
 }
 
-func (p *Pane) SetContent(content []string) {
+func (p *Pane[T]) SetContent(content []T) {
 	p.content = content
 	p.cursor = p.limitCursor(p.cursor)
 }
 
-func (p *Pane) onSpace(g *gocui.Gui, v *gocui.View) error {
+func (p *Pane[T]) onSpace(g *gocui.Gui, v *gocui.View) error {
 	if p.onSelectItem == nil || len(p.content) == 0 {
 		return nil
 	}
@@ -132,7 +136,7 @@ func (p *Pane) onSpace(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func (p *Pane) Position(left, top, right, bottom int) {
+func (p *Pane[T]) Position(left, top, right, bottom int) {
 	p.View.Visible = true
 	p.g.SetView(p.Name, left, top, right, bottom, 0)
 	p.limitCursor(p.cursor)
@@ -165,14 +169,14 @@ func boldDarkBlue(text string) string {
 	return fmt.Sprintf("\x1b[38;4;6;1m%s\x1b[0m", text)
 }
 
-func (p *Pane) Paint() {
+func (p *Pane[T]) Paint() {
 	_, sy := p.View.Size()
 	p.View.Clear()
 	for i := 0; i < sy && i+p.scrollOffset < len(p.content); i += 1 {
 		index := p.scrollOffset + i
 		item := p.content[index]
 		underCursor := p.g.CurrentView() == p.View && p.cursor == index
-		selected := p.Selected == item
+		selected := item.EqualsPaneable(p.Selected)
 		color := gocui.ColorWhite
 		if selected {
 			color = gocui.ColorCyan
@@ -182,14 +186,14 @@ func (p *Pane) Paint() {
 		}
 		p.View.SetCurrentFgColor(color)
 		p.View.SetCurrentBgColor(gocui.ColorDefault)
-		p.View.WriteString(item + "\n")
+		p.View.WriteString(item.String() + "\n")
 	}
 }
 
-func (p *Pane) OnSelectItem(callback func(item string)) {
+func (p *Pane[T]) OnSelectItem(callback func(item T)) {
 	p.onSelectItem = callback
 }
 
-func (p *Pane) Select() {
+func (p *Pane[T]) Select() {
 	p.g.SetCurrentView(p.Name)
 }

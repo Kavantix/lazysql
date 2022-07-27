@@ -50,7 +50,17 @@ var databases []database.Database
 var selectedDatabase database.Database
 var selectedTable database.Table
 
-var databasesPane, tablesPane, queryPane *Pane
+type paneableString string
+
+func (s paneableString) String() string {
+	return string(s)
+}
+
+func (s paneableString) EqualsPaneable(other Paneable) bool {
+	return other.(paneableString) == s
+}
+
+var databasesPane, tablesPane, queryPane *Pane[paneableString]
 var resultsPane *ResultsPane
 var errorView *gocui.View
 var queryEditor *QueryEditor
@@ -165,8 +175,13 @@ func showDatabaseLayout(g *gocui.Gui) {
 		log.Panicln(err)
 	}
 
-	databasesPane = NewPane(g, "Databases")
-	databasesPane.SetContent(database.DatabaseNames(databases))
+	databasesPane = NewPane[paneableString](g, "Databases")
+	databaseNames := database.DatabaseNames(databases)
+	databases := make([]paneableString, len(databaseNames))
+	for i, database := range databaseNames {
+		databases[i] = paneableString(database)
+	}
+	databasesPane.SetContent(databases)
 	databasesPane.OnSelectItem(onSelectDatabase(g))
 	databasesPane.Select()
 	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
@@ -186,7 +201,7 @@ func showDatabaseLayout(g *gocui.Gui) {
 	if queryEditor, err = NewQueryEditor(g); err != nil {
 		log.Panicln(err)
 	}
-	tablesPane = NewPane(g, "Tables")
+	tablesPane = NewPane[paneableString](g, "Tables")
 	tablesPane.OnSelectItem(onSelectTable(g))
 	// resultsPane = NewPane(g, "Results")
 
@@ -267,8 +282,8 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-func onSelectDatabase(g *gocui.Gui) func(database string) {
-	return func(db string) {
+func onSelectDatabase(g *gocui.Gui) func(database paneableString) {
+	return func(db paneableString) {
 		changeDatabase(g, database.Database(db))
 	}
 }
@@ -295,15 +310,20 @@ func changeDatabase(g *gocui.Gui, dbname database.Database) {
 			g.UpdateAsync(func(g *gocui.Gui) error {
 				tablesPane.SetCursor(0)
 				tablesPane.Select()
-				tablesPane.SetContent(database.TableNames(newTables))
+				tableNames := database.TableNames(newTables)
+				tables := make([]paneableString, len(tableNames))
+				for i, table := range tableNames {
+					tables[i] = paneableString(table)
+				}
+				tablesPane.SetContent(tables)
 				return nil
 			})
 		}()
 	}
 }
 
-func onSelectTable(g *gocui.Gui) func(table string) {
-	return func(table string) {
+func onSelectTable(g *gocui.Gui) func(table paneableString) {
+	return func(table paneableString) {
 		changeTable(g, database.Table(table))
 	}
 }
