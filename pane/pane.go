@@ -23,6 +23,16 @@ type Paneable interface {
 	EqualsPaneable(other Paneable) bool
 }
 
+type PaneableString string
+
+func (s PaneableString) String() string {
+	return string(s)
+}
+
+func (s PaneableString) EqualsPaneable(other Paneable) bool {
+	return other.(PaneableString) == s
+}
+
 func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 	view, _ := g.SetView(name, 0, 0, 1, 1, 0)
 	view.Visible = true
@@ -36,6 +46,11 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 		g:            g,
 	}
 	if err := g.SetKeybinding(name, gocui.KeySpace, gocui.ModNone, p.onSpace); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(name, gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		return gocui.ErrQuit
+	}); err != nil {
 		log.Panicln(err)
 	}
 	if err := g.SetKeybinding(name, 'j', gocui.ModNone, p.onCursorDown); err != nil {

@@ -50,18 +50,9 @@ var databases []database.Database
 var selectedDatabase database.Database
 var selectedTable database.Table
 
-type paneableString string
-
-func (s paneableString) String() string {
-	return string(s)
-}
-
-func (s paneableString) EqualsPaneable(other Paneable) bool {
-	return other.(paneableString) == s
-}
-
-var databasesPane, tablesPane, queryPane *Pane[paneableString]
+var databasesPane, tablesPane, queryPane *Pane[PaneableString]
 var resultsPane *ResultsPane
+var historyPane *HistoryPane
 var errorView *gocui.View
 var queryEditor *QueryEditor
 
@@ -175,15 +166,21 @@ func showDatabaseLayout(g *gocui.Gui) {
 		log.Panicln(err)
 	}
 
-	databasesPane = NewPane[paneableString](g, "Databases")
+	databasesPane = NewPane[PaneableString](g, "Databases")
 	databaseNames := database.DatabaseNames(databases)
-	databases := make([]paneableString, len(databaseNames))
+	databases := make([]PaneableString, len(databaseNames))
 	for i, database := range databaseNames {
-		databases[i] = paneableString(database)
+		databases[i] = PaneableString(database)
 	}
 	databasesPane.SetContent(databases)
 	databasesPane.OnSelectItem(onSelectDatabase(g))
 	databasesPane.Select()
+
+	historyPane = NewHistoryPane(g, func(query database.Query) {
+		queryEditor.query = string(query)
+		onExecuteQuery(g, false)(query)
+	})
+
 	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
 	errorView.Visible = false
 	errorView.Title = "Error"
@@ -198,10 +195,10 @@ func showDatabaseLayout(g *gocui.Gui) {
 	}
 
 	// queryPane = NewPane(g, "Query")
-	if queryEditor, err = NewQueryEditor(g); err != nil {
+	if queryEditor, err = NewQueryEditor(g, onExecuteQuery(g, true)); err != nil {
 		log.Panicln(err)
 	}
-	tablesPane = NewPane[paneableString](g, "Tables")
+	tablesPane = NewPane[PaneableString](g, "Tables")
 	tablesPane.OnSelectItem(onSelectTable(g))
 	// resultsPane = NewPane(g, "Results")
 
@@ -235,10 +232,12 @@ func layout(g *gocui.Gui) error {
 		footerView.Frame = false
 		footerView.WriteString("Footer")
 	}
-	databasesPane.Position(0, 0, maxX/3-1, maxY/2-1)
+	databasesPane.Position(0, 0, maxX/3-1, 9)
 	databasesPane.Paint()
-	tablesPane.Position(0, maxY/2, maxX/3-1, maxY-2)
+	tablesPane.Position(0, 10, maxX/3-1, 10+(maxY-10-2)/2-1)
 	tablesPane.Paint()
+	historyPane.Position(0, 10+(maxY-10-2)/2, maxX/3-1, maxY-2)
+	historyPane.Paint()
 	resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
 	resultsPane.Paint()
 	queryEditor.Position(maxX/3, 0, maxX-1, 6)
@@ -282,8 +281,8 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-func onSelectDatabase(g *gocui.Gui) func(database paneableString) {
-	return func(db paneableString) {
+func onSelectDatabase(g *gocui.Gui) func(database PaneableString) {
+	return func(db PaneableString) {
 		changeDatabase(g, database.Database(db))
 	}
 }
@@ -311,9 +310,9 @@ func changeDatabase(g *gocui.Gui, dbname database.Database) {
 				tablesPane.SetCursor(0)
 				tablesPane.Select()
 				tableNames := database.TableNames(newTables)
-				tables := make([]paneableString, len(tableNames))
+				tables := make([]PaneableString, len(tableNames))
 				for i, table := range tableNames {
-					tables[i] = paneableString(table)
+					tables[i] = PaneableString(table)
 				}
 				tablesPane.SetContent(tables)
 				return nil
@@ -322,8 +321,8 @@ func changeDatabase(g *gocui.Gui, dbname database.Database) {
 	}
 }
 
-func onSelectTable(g *gocui.Gui) func(table paneableString) {
-	return func(table paneableString) {
+func onSelectTable(g *gocui.Gui) func(table PaneableString) {
+	return func(table PaneableString) {
 		changeTable(g, database.Table(table))
 	}
 }
@@ -342,6 +341,25 @@ func changeTable(g *gocui.Gui, table database.Table) {
 			result, err := db.Query(database.Query(query))
 			resultsPane.View.HasLoader = false
 			if !handleError(err) {
+				resultsPane.SetContent(result.Columns, result.Data)
+			} else {
+				redraw(g)
+			}
+		}()
+	}
+}
+
+func onExecuteQuery(g *gocui.Gui, addToHistory bool) func(query database.Query) {
+	return func(query database.Query) {
+		go func() {
+			resultsPane.View.HasLoader = true
+			resultsPane.Clear()
+			result, err := db.Query(query)
+			resultsPane.View.HasLoader = false
+			if !handleError(err) {
+				if addToHistory {
+					historyPane.AddQuery(query)
+				}
 				resultsPane.SetContent(result.Columns, result.Data)
 			} else {
 				redraw(g)
@@ -416,6 +434,7 @@ func scrollRight(g *gocui.Gui, v *gocui.View) error {
 
 func scrollLeft(g *gocui.Gui, v *gocui.View) error {
 	x, y := v.Origin()
+
 	v.SetOrigin(x, y-1)
 	return nil
 }

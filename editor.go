@@ -37,13 +37,15 @@ type QueryEditor struct {
 	selectionInitial   int
 	selectionStart     int
 	selectionEnd       int
+	onExecuteQuery     func(query database.Query)
 }
 
-func NewQueryEditor(g *gocui.Gui) (*QueryEditor, error) {
+func NewQueryEditor(g *gocui.Gui, onExecuteQuery func(query database.Query)) (*QueryEditor, error) {
 	q := &QueryEditor{
-		g:           g,
-		name:        "Query",
-		lastKeyTime: time.Now(),
+		g:              g,
+		name:           "Query",
+		lastKeyTime:    time.Now(),
+		onExecuteQuery: onExecuteQuery,
 	}
 	if queryView, err := g.SetView(q.name, 0, 0, 1, 1, 0); err != nil {
 		if err != gocui.ErrUnknownView {
@@ -220,17 +222,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 			tablesPane.Select()
 		}
 	case key == gocui.KeyEnter:
-		go func() {
-			resultsPane.View.HasLoader = true
-			resultsPane.Clear()
-			result, err := db.Query(database.Query(q.query))
-			resultsPane.View.HasLoader = false
-			if !handleError(err) {
-				resultsPane.SetContent(result.Columns, result.Data)
-			} else {
-				redraw(q.g)
-			}
-		}()
+		q.onExecuteQuery(database.Query(q.query))
 	case ch == 'i':
 		q.mode = ModeInsert
 	case ch == 'v':
