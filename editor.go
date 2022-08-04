@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Kavantix/lazysql/database"
+	"github.com/Kavantix/lazysql/gui"
 	"github.com/Kavantix/lazysql/highlighting"
 	"github.com/alecthomas/chroma/quick"
 	"github.com/awesome-gocui/gocui"
@@ -37,15 +38,15 @@ type QueryEditor struct {
 	selectionInitial   int
 	selectionStart     int
 	selectionEnd       int
-	onExecuteQuery     func(query database.Query)
+	context            gui.DatabaseContext
 }
 
-func NewQueryEditor(g *gocui.Gui, onExecuteQuery func(query database.Query)) (*QueryEditor, error) {
+func NewQueryEditor(g *gocui.Gui, context gui.DatabaseContext) (*QueryEditor, error) {
 	q := &QueryEditor{
-		g:              g,
-		name:           "Query",
-		lastKeyTime:    time.Now(),
-		onExecuteQuery: onExecuteQuery,
+		g:           g,
+		name:        "Query",
+		lastKeyTime: time.Now(),
+		context:     context,
 	}
 	if queryView, err := g.SetView(q.name, 0, 0, 1, 1, 0); err != nil {
 		if err != gocui.ErrUnknownView {
@@ -84,7 +85,7 @@ func NewQueryEditor(g *gocui.Gui, onExecuteQuery func(query database.Query)) (*Q
 			case ModeInsert:
 				q.mode = ModeNormal
 			case ModeNormal:
-				if !db.CancelQuery() {
+				if !context.CancelQuery() {
 					return gocui.ErrQuit
 				}
 			case ModeVisual:
@@ -138,8 +139,8 @@ func (q *QueryEditor) Paint() {
 	}
 	q.view.Title = fmt.Sprintf("%s (%s)", q.name, q.ModeName())
 	ClearPreserveOrigin(q.view)
-	if queryEditor.query != "" {
-		quick.Highlight(q.view, queryEditor.query, "mysql", highlighting.CustomFormatter.Name(), "monokai")
+	if q.query != "" {
+		quick.Highlight(q.view, q.query, "mysql", highlighting.CustomFormatter.Name(), "monokai")
 	}
 }
 
@@ -219,10 +220,10 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		if len(q.previousCharacters) > 0 {
 			q.previousCharacters = []rune{}
 		} else {
-			tablesPane.Select()
+			q.context.SelectTablesPane()
 		}
 	case key == gocui.KeyEnter:
-		q.onExecuteQuery(database.Query(q.query))
+		q.context.ExecuteQuery(database.Query(q.query))
 	case ch == 'i':
 		q.mode = ModeInsert
 	case ch == 'v':

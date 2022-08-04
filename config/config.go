@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Kavantix/lazysql/context"
+	"github.com/Kavantix/lazysql/gui"
 	. "github.com/Kavantix/lazysql/pane"
 	"github.com/awesome-gocui/gocui"
 )
@@ -30,7 +30,7 @@ type ConfigPane struct {
 	g            *gocui.Gui
 	selectedHost *Host
 	onConnect    func(host string, port int, user, password string)
-	context      context.Context
+	context      gui.Context
 
 	nameTextBox, hostTextBox, portTextBox *textBox
 	userTextBox, passwordTextBox          *textBox
@@ -39,7 +39,7 @@ type ConfigPane struct {
 	hosts                                 []*Host
 }
 
-func NewConfigPane(onConnect func(host string, port int, user, password string), context context.Context) (*ConfigPane, error) {
+func NewConfigPane(onConnect func(host string, port int, user, password string), context gui.Context) (*ConfigPane, error) {
 	hosts, err := LoadHosts()
 	if err != nil {
 		return nil, fmt.Errorf("Cannot load config file:\n%s\n", err)
@@ -212,7 +212,7 @@ func (c *ConfigPane) onSave() {
 
 	c.setHostsPaneContentWithDummy()
 
-	c.context.ShowInfo("", "Saved successfully")
+	c.context.ShowSuccess("Saved hosts")
 }
 
 func (c *ConfigPane) changeHost(host *Host) {

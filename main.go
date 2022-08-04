@@ -8,10 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/Kavantix/lazysql/config"
-	"github.com/Kavantix/lazysql/context"
 	"github.com/Kavantix/lazysql/database"
 	. "github.com/Kavantix/lazysql/pane"
 	"github.com/Kavantix/lazysql/popup"
@@ -21,64 +19,92 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var logFile *os.File
+type mainContext struct {
+	g         *gocui.Gui
+	popupView *popup.View
+	logFile   *os.File
 
-// Log to a log.txt file
-func Log(text string) {
-	if logFile == nil {
-		logFile, _ = os.OpenFile("log.txt", os.O_WRONLY|os.O_TRUNC|os.O_CREATE|os.O_SYNC, fs.ModePerm)
-	}
-	fmt.Fprintln(logFile, text)
+	db               database.Driver
+	databases        []database.Database
+	selectedDatabase database.Database
+	selectedTable    database.Table
+
+	databasesPane, tablesPane, queryPane *Pane[PaneableString]
+	resultsPane                          *ResultsPane
+	historyPane                          *HistoryPane
+	queryEditor                          *QueryEditor
 }
 
-func checkErr(err error) {
-	if err != nil {
-		log.Panicln(err)
-	}
-}
-
-func handleError(err error) bool {
+func (c *mainContext) HandleError(err error) bool {
 	if err != nil && err != goContext.Canceled {
-		ShowError("Error", err.Error())
+		c.ShowError(err.Error())
 	}
 
 	return err != nil
 }
 
-func ShowInfo(title, message string) {
-	popupView.Show(title, message, gocui.ColorCyan)
+// Log to a log.txt file
+func (c *mainContext) Log(text string) {
+	if c.logFile == nil {
+		c.logFile, _ = os.OpenFile("lazysql.log", os.O_WRONLY|os.O_TRUNC|os.O_CREATE|os.O_SYNC, fs.ModePerm)
+	}
+	fmt.Fprintln(c.logFile, text)
 }
 
-func ShowSuccess(title, message string) {
-	popupView.Show(title, message, gocui.ColorGreen+8)
+func (c *mainContext) ShowInfo(message string) {
+	c.popupView.Show("", message, gocui.ColorCyan)
 }
 
-func ShowWarn(title, message string) {
-	popupView.Show(title, message, gocui.ColorYellow+8)
+func (c *mainContext) ShowSuccess(message string) {
+	c.popupView.Show("Success", message, gocui.ColorGreen+8)
 }
 
-func ShowError(title, message string) {
-	popupView.Show(title, message, gocui.ColorRed+8)
+func (c *mainContext) ShowWarning(message string) {
+	c.Log("[Warning]: " + message)
+	c.popupView.Show("Warning", message, gocui.ColorYellow+8)
 }
 
-var queryMutex = sync.Mutex{}
+func (c *mainContext) ShowError(message string) {
+	c.Log("[Error]: " + message)
+	c.popupView.Show("Error", message, gocui.ColorRed+8)
+}
 
-var db database.Driver
-var databases []database.Database
-var selectedDatabase database.Database
-var selectedTable database.Table
+func (c *mainContext) ShowPopup(title, message string, color gocui.Attribute) {
+	c.popupView.Show(title, message, color)
+}
 
-var databasesPane, tablesPane, queryPane *Pane[PaneableString]
-var resultsPane *ResultsPane
-var historyPane *HistoryPane
-var queryEditor *QueryEditor
-var popupView *popup.View
+func (c *mainContext) ExecuteQuery(query database.Query) {
+	go func() {
+		c.resultsPane.View.HasLoader = true
+		c.resultsPane.Clear()
+		result, err := c.db.Query(query)
+		c.resultsPane.View.HasLoader = false
+		if err != nil {
+			c.ShowError(err.Error())
+		} else {
+			c.historyPane.AddQuery(query)
+			c.resultsPane.SetContent(result.Columns, result.Data)
+		}
+	}()
+}
+
+func (c *mainContext) CancelQuery() bool {
+	return c.db.CancelQuery()
+}
+
+func (c *mainContext) SelectTablesPane() {
+	c.tablesPane.Select()
+}
+var context *mainContext
+
 
 func main() {
+
 	err := godotenv.Load()
 	checkErr(err)
 
 	g, err := gocui.NewGui(gocui.OutputTrue, true)
+	context = &mainContext{g: g}
 	checkErr(err)
 	defer g.Close()
 	g.Mouse = true
@@ -89,34 +115,31 @@ func main() {
 
 	configPane, err := config.NewConfigPane(func(host string, port int, user, password string) {
 		var err error
-		db, err = database.NewMysqlDriver(database.Dsn{
+		context.db, err = database.NewMysqlDriver(database.Dsn{
 			Host:     host,
 			Port:     strconv.Itoa(port),
 			User:     user,
 			Password: password,
 		})
-		if !handleError(err) {
-			databases, err = db.Databases()
-			if !handleError(err) {
+		if !context.HandleError(err) {
+			context.databases, err = context.db.Databases()
+			if !context.HandleError(err) {
 				showDatabaseLayout(g)
 			}
 		}
 	},
-		context.Context{
-			HandleError: handleError,
-			ShowInfo:    ShowInfo,
-		},
+		context,
 	)
 	checkErr(err)
 	g.SetManagerFunc(func(g *gocui.Gui) error {
 		err := configPane.Layout(g)
-		popupView.Layout()
+		context.popupView.Layout()
 		return err
 	})
 	err = configPane.Init(g)
 	checkErr(err)
 
-	popupView, err = popup.New(g)
+	context.popupView, err = popup.New(g)
 	checkErr(err)
 
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
@@ -162,31 +185,31 @@ func showDatabaseLayout(g *gocui.Gui) {
 		log.Panicln(err)
 	}
 
-	databasesPane = NewPane[PaneableString](g, "Databases")
-	databaseNames := database.DatabaseNames(databases)
+	context.databasesPane = NewPane[PaneableString](g, "Databases")
+	databaseNames := database.DatabaseNames(context.databases)
 	databases := make([]PaneableString, len(databaseNames))
 	for i, database := range databaseNames {
 		databases[i] = PaneableString(database)
 	}
-	databasesPane.SetContent(databases)
-	databasesPane.OnSelectItem(onSelectDatabase(g))
-	databasesPane.Select()
+	context.databasesPane.SetContent(databases)
+	context.databasesPane.OnSelectItem(onSelectDatabase(g))
+	context.databasesPane.Select()
 
-	historyPane = NewHistoryPane(g, func(query database.Query) {
-		queryEditor.query = string(query)
-		queryEditor.Select()
-		resultsPane.Clear()
+	context.historyPane = NewHistoryPane(g, func(query database.Query) {
+		context.queryEditor.query = string(query)
+		context.queryEditor.Select()
+		context.resultsPane.Clear()
 	})
 
-	popupView, err = popup.New(g)
+	context.popupView, err = popup.New(g)
 	checkErr(err)
-	resultsPane = NewResultsPane(g)
+	context.resultsPane = NewResultsPane(g)
 
-	if queryEditor, err = NewQueryEditor(g, onExecuteQuery(g, true)); err != nil {
+	if context.queryEditor, err = NewQueryEditor(g, context); err != nil {
 		log.Panicln(err)
 	}
-	tablesPane = NewPane[PaneableString](g, "Tables")
-	tablesPane.OnSelectItem(onSelectTable(g))
+	context.tablesPane = NewPane[PaneableString](g, "Tables")
+	context.tablesPane.OnSelectItem(onSelectTable(g))
 }
 
 func bold(text string) string {
@@ -217,21 +240,21 @@ func layout(g *gocui.Gui) error {
 		footerView.Frame = false
 		footerView.WriteString("Footer")
 	}
-	databasesPane.Position(0, 0, maxX/3-1, 9)
-	databasesPane.Paint()
-	tablesPane.Position(0, 10, maxX/3-1, 10+(maxY-10-2)/2-1)
-	tablesPane.Paint()
-	historyPane.Position(0, 10+(maxY-10-2)/2, maxX/3-1, maxY-2)
-	historyPane.Paint()
-	resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
-	resultsPane.Paint()
-	queryEditor.Position(maxX/3, 0, maxX-1, 6)
-	queryEditor.Paint()
+	context.databasesPane.Position(0, 0, maxX/3-1, 9)
+	context.databasesPane.Paint()
+	context.tablesPane.Position(0, 10, maxX/3-1, 10+(maxY-10-2)/2-1)
+	context.tablesPane.Paint()
+	context.historyPane.Position(0, 10+(maxY-10-2)/2, maxX/3-1, maxY-2)
+	context.historyPane.Paint()
+	context.resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
+	context.resultsPane.Paint()
+	context.queryEditor.Position(maxX/3, 0, maxX-1, 6)
+	context.queryEditor.Paint()
 	if g.CurrentView().Name() == "Query" {
 		g.Cursor = true
-		lines := strings.Split(queryEditor.query, "\n")
+		lines := strings.Split(context.queryEditor.query, "\n")
 		line := lines[0]
-		cursor := queryEditor.cursor
+		cursor := context.queryEditor.cursor
 		row := 0
 		for cursor > len(line) {
 			cursor -= len(line) + 1
@@ -246,7 +269,7 @@ func layout(g *gocui.Gui) error {
 		g.Cursor = false
 	}
 
-	popupView.Layout()
+	context.popupView.Layout()
 	if footerView, err := g.View("Footer"); err == nil {
 		footerView.Clear()
 		if len(gocui.EventLog) > 0 {
@@ -266,30 +289,30 @@ func changeDatabase(g *gocui.Gui, dbname database.Database) {
 	if dbname == "" {
 		return
 	}
-	if selectedDatabase != dbname {
-		Log(fmt.Sprintf("Changing db from %s to %s", selectedDatabase, dbname))
-		selectedDatabase = dbname
+	if context.selectedDatabase != dbname {
+		context.Log(fmt.Sprintf("Changing db from %s to %s", context.selectedDatabase, dbname))
+		context.selectedDatabase = dbname
 		// fmt.Println("selected database")
 		// tablesView, _ := g.View("Tables")
 		// tablesView.Clear()
 		go func() {
-			if handleError(db.SelectDatabase(dbname)) {
+			if context.HandleError(context.db.SelectDatabase(dbname)) {
 				return
 			}
 			fmt.Printf("\x1b]0;lazysql (%s)\a", dbname)
-			newTables, err := db.Tables()
-			if handleError(err) {
+			newTables, err := context.db.Tables()
+			if context.HandleError(err) {
 				return
 			}
 			g.UpdateAsync(func(g *gocui.Gui) error {
-				tablesPane.SetCursor(0)
-				tablesPane.Select()
+				context.tablesPane.SetCursor(0)
+				context.tablesPane.Select()
 				tableNames := database.TableNames(newTables)
 				tables := make([]PaneableString, len(tableNames))
 				for i, table := range tableNames {
 					tables[i] = PaneableString(table)
 				}
-				tablesPane.SetContent(tables)
+				context.tablesPane.SetContent(tables)
 				return nil
 			})
 		}()
@@ -306,36 +329,17 @@ func changeTable(g *gocui.Gui, table database.Table) {
 	if table == "" {
 		return
 	}
-	if selectedTable != table {
-		selectedTable = table
-		query := fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT 9999", selectedTable)
-		queryEditor.query = query
+	if context.selectedTable != table {
+		context.selectedTable = table
+		query := fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT 9999", context.selectedTable)
+		context.queryEditor.query = query
 		go func() {
-			resultsPane.View.HasLoader = true
-			resultsPane.Clear()
-			result, err := db.Query(database.Query(query))
-			resultsPane.View.HasLoader = false
-			if !handleError(err) {
-				resultsPane.SetContent(result.Columns, result.Data)
-			} else {
-				redraw(g)
-			}
-		}()
-	}
-}
-
-func onExecuteQuery(g *gocui.Gui, addToHistory bool) func(query database.Query) {
-	return func(query database.Query) {
-		go func() {
-			resultsPane.View.HasLoader = true
-			resultsPane.Clear()
-			result, err := db.Query(query)
-			resultsPane.View.HasLoader = false
-			if !handleError(err) {
-				if addToHistory {
-					historyPane.AddQuery(query)
-				}
-				resultsPane.SetContent(result.Columns, result.Data)
+			context.resultsPane.View.HasLoader = true
+			context.resultsPane.Clear()
+			result, err := context.db.Query(database.Query(query))
+			context.resultsPane.View.HasLoader = false
+			if !context.HandleError(err) {
+				context.resultsPane.SetContent(result.Columns, result.Data)
 			} else {
 				redraw(g)
 			}
@@ -367,24 +371,24 @@ func Max(x, y int) int {
 
 func currentViewDown(g *gocui.Gui, v *gocui.View) error {
 	switch v.Name() {
-	case databasesPane.Name:
-		tablesPane.Select()
-	case tablesPane.Name:
-		resultsPane.Select()
-	case resultsPane.Name:
-		databasesPane.Select()
+	case context.databasesPane.Name:
+		context.tablesPane.Select()
+	case context.tablesPane.Name:
+		context.resultsPane.Select()
+	case context.resultsPane.Name:
+		context.databasesPane.Select()
 	}
 	return nil
 }
 
 func currentViewUp(g *gocui.Gui, v *gocui.View) error {
 	switch v.Name() {
-	case databasesPane.Name:
-		resultsPane.Select()
-	case tablesPane.Name:
-		databasesPane.Select()
-	case resultsPane.Name:
-		tablesPane.Select()
+	case context.databasesPane.Name:
+		context.resultsPane.Select()
+	case context.tablesPane.Name:
+		context.databasesPane.Select()
+	case context.resultsPane.Name:
+		context.tablesPane.Select()
 	}
 	return nil
 }
@@ -422,4 +426,10 @@ func ClearPreserveOrigin(v *gocui.View) {
 	ox, oy := v.Origin()
 	v.Clear()
 	v.SetOrigin(ox, oy)
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Panicln(err)
+	}
 }
