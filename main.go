@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	goContext "context"
 	"fmt"
 	"io/fs"
 	"log"
@@ -11,8 +11,10 @@ import (
 	"sync"
 
 	"github.com/Kavantix/lazysql/config"
+	"github.com/Kavantix/lazysql/context"
 	"github.com/Kavantix/lazysql/database"
 	. "github.com/Kavantix/lazysql/pane"
+	"github.com/Kavantix/lazysql/popup"
 	. "github.com/Kavantix/lazysql/results"
 
 	"github.com/awesome-gocui/gocui"
@@ -36,11 +38,27 @@ func checkErr(err error) {
 }
 
 func handleError(err error) bool {
-	if err != nil && err != context.Canceled {
-		errorMessage = err
+	if err != nil && err != goContext.Canceled {
+		ShowError("Error", err.Error())
 	}
 
 	return err != nil
+}
+
+func ShowInfo(title, message string) {
+	popupView.Show(title, message, gocui.ColorCyan)
+}
+
+func ShowSuccess(title, message string) {
+	popupView.Show(title, message, gocui.ColorGreen+8)
+}
+
+func ShowWarn(title, message string) {
+	popupView.Show(title, message, gocui.ColorYellow+8)
+}
+
+func ShowError(title, message string) {
+	popupView.Show(title, message, gocui.ColorRed+8)
 }
 
 var queryMutex = sync.Mutex{}
@@ -53,11 +71,8 @@ var selectedTable database.Table
 var databasesPane, tablesPane, queryPane *Pane[PaneableString]
 var resultsPane *ResultsPane
 var historyPane *HistoryPane
-var errorView *gocui.View
 var queryEditor *QueryEditor
-
-var errorMessage error
-var previouslySelectedViewName string
+var popupView *popup.View
 
 func main() {
 	err := godotenv.Load()
@@ -86,42 +101,23 @@ func main() {
 				showDatabaseLayout(g)
 			}
 		}
-	})
+	},
+		context.Context{
+			HandleError: handleError,
+			ShowInfo:    ShowInfo,
+		},
+	)
 	checkErr(err)
-	configPane.SetErrorHandler(handleError)
 	g.SetManagerFunc(func(g *gocui.Gui) error {
 		err := configPane.Layout(g)
-		if errorMessage != nil {
-			maxX, maxY := g.Size()
-			errorView.Visible = true
-			g.SetView("errors", 4, 4, maxX-4, maxY-4, 0)
-			g.SetViewOnTop("errors")
-			errorView.Clear()
-			fmt.Fprint(errorView, errorMessage)
-			currentView := g.CurrentView()
-			if currentView.Name() != "errors" {
-				g.SetCurrentView("errors")
-				previouslySelectedViewName = currentView.Name()
-			}
-		} else {
-			errorView.Visible = false
-			g.SetViewOnBottom(errorView.Name())
-		}
+		popupView.Layout()
 		return err
 	})
 	err = configPane.Init(g)
 	checkErr(err)
-	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
-	errorView.Visible = false
-	errorView.Title = "Error"
-	if err := g.SetKeybinding("errors", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		errorMessage = nil
-		g.SetCurrentView(previouslySelectedViewName)
-		return nil
-	}); err != nil {
-		log.Panicln(err)
-	}
-	// whatever(g)
+
+	popupView, err = popup.New(g)
+	checkErr(err)
 
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
@@ -182,27 +178,15 @@ func showDatabaseLayout(g *gocui.Gui) {
 		resultsPane.Clear()
 	})
 
-	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
-	errorView.Visible = false
-	errorView.Title = "Error"
+	popupView, err = popup.New(g)
+	checkErr(err)
 	resultsPane = NewResultsPane(g)
 
-	if err := g.SetKeybinding("errors", gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		errorMessage = nil
-		tablesPane.Select()
-		return nil
-	}); err != nil {
-		log.Panicln(err)
-	}
-
-	// queryPane = NewPane(g, "Query")
 	if queryEditor, err = NewQueryEditor(g, onExecuteQuery(g, true)); err != nil {
 		log.Panicln(err)
 	}
 	tablesPane = NewPane[PaneableString](g, "Tables")
 	tablesPane.OnSelectItem(onSelectTable(g))
-	// resultsPane = NewPane(g, "Results")
-
 }
 
 func bold(text string) string {
@@ -262,17 +246,7 @@ func layout(g *gocui.Gui) error {
 		g.Cursor = false
 	}
 
-	if errorMessage != nil {
-		errorView.Visible = true
-		g.SetView("errors", 4, 4, maxX-4, maxY-4, 0)
-		g.SetViewOnTop("errors")
-		errorView.Clear()
-		fmt.Fprint(errorView, errorMessage)
-		g.SetCurrentView("errors")
-	} else {
-		errorView.Visible = false
-		g.SetViewOnBottom(errorView.Name())
-	}
+	popupView.Layout()
 	if footerView, err := g.View("Footer"); err == nil {
 		footerView.Clear()
 		if len(gocui.EventLog) > 0 {

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Kavantix/lazysql/context"
 	. "github.com/Kavantix/lazysql/pane"
 	"github.com/awesome-gocui/gocui"
 )
@@ -29,7 +30,7 @@ type ConfigPane struct {
 	g            *gocui.Gui
 	selectedHost *Host
 	onConnect    func(host string, port int, user, password string)
-	handleError  func(err error) bool
+	context      context.Context
 
 	nameTextBox, hostTextBox, portTextBox *textBox
 	userTextBox, passwordTextBox          *textBox
@@ -38,7 +39,7 @@ type ConfigPane struct {
 	hosts                                 []*Host
 }
 
-func NewConfigPane(onConnect func(host string, port int, user, password string)) (*ConfigPane, error) {
+func NewConfigPane(onConnect func(host string, port int, user, password string), context context.Context) (*ConfigPane, error) {
 	hosts, err := LoadHosts()
 	if err != nil {
 		return nil, fmt.Errorf("Cannot load config file:\n%s\n", err)
@@ -48,12 +49,7 @@ func NewConfigPane(onConnect func(host string, port int, user, password string))
 		name:      "ConfigPane",
 		onConnect: onConnect,
 		hosts:     hosts,
-		handleError: func(err error) bool {
-			if err != nil {
-				panic(err)
-			}
-			return err != nil
-		},
+		context:   context,
 	}
 	return configPane, nil
 }
@@ -126,7 +122,7 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		func() {
 			port, err := strconv.Atoi(c.portTextBox.content)
 			if err != nil || port < 1 || port > 65535 {
-				c.handleError(errors.New("port should be a valid integer between 1 and 65535"))
+				c.context.HandleError(errors.New("port should be a valid integer between 1 and 65535"))
 			}
 			c.onConnect(
 				strings.TrimSpace(c.hostTextBox.content),
@@ -151,10 +147,6 @@ func (c *ConfigPane) setHostsPaneContentWithDummy() {
 	c.hostsPane.SetContent(append(c.hosts, &Host{
 		Name: newHostName,
 	}))
-}
-
-func (c *ConfigPane) SetErrorHandler(handleError func(err error) bool) {
-	c.handleError = handleError
 }
 
 func (c *ConfigPane) selectHostsPane() {
@@ -192,7 +184,7 @@ func (c *ConfigPane) selectSave() {
 func (c *ConfigPane) onSave() {
 	port, err := strconv.Atoi(c.portTextBox.content)
 	if err != nil || port < 1 || port > 65535 {
-		c.handleError(errors.New("port should be a valid integer between 1 and 65535"))
+		c.context.HandleError(errors.New("port should be a valid integer between 1 and 65535"))
 	}
 	host := Host{
 		Name:     strings.TrimSpace(c.nameTextBox.content),
@@ -203,7 +195,7 @@ func (c *ConfigPane) onSave() {
 	}
 
 	if host.Name == "" {
-		c.handleError(errors.New("Host name cannot be empty"))
+		c.context.HandleError(errors.New("Host name cannot be empty"))
 		return
 	}
 
@@ -214,14 +206,13 @@ func (c *ConfigPane) onSave() {
 	} else {
 		*c.selectedHost = host
 	}
-	if c.handleError(SaveHosts(c.hosts)) {
+	if c.context.HandleError(SaveHosts(c.hosts)) {
 		return
 	}
 
 	c.setHostsPaneContentWithDummy()
 
-	// TODO: show proper popup on success
-	c.handleError(errors.New("saved successfully"))
+	c.context.ShowInfo("", "Saved successfully")
 }
 
 func (c *ConfigPane) changeHost(host *Host) {
