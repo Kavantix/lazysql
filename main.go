@@ -178,7 +178,8 @@ func showDatabaseLayout(g *gocui.Gui) {
 
 	historyPane = NewHistoryPane(g, func(query database.Query) {
 		queryEditor.query = string(query)
-		onExecuteQuery(g, false)(query)
+		queryEditor.Select()
+		resultsPane.Clear()
 	})
 
 	errorView, _ = g.SetView("errors", 0, 0, 1, 1, 0)
