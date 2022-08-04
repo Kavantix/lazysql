@@ -43,9 +43,6 @@ func NewResultsPane(g *gocui.Gui) *ResultsPane {
 		dirty:             true,
 		columnContentView: columnContentView,
 	}
-	g.SetKeybinding(r.Name, gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		return gocui.ErrQuit
-	})
 	g.SetKeybinding(r.Name, gocui.MouseLeft, gocui.ModNone, r.mouseDown)
 	g.SetKeybinding(r.Name, gocui.MouseWheelDown, gocui.ModNone, r.moveDown)
 	g.SetKeybinding(r.Name, gocui.MouseWheelUp, gocui.ModNone, r.moveUp)

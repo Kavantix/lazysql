@@ -6,6 +6,11 @@ import (
 )
 
 type Context interface {
+	// SetTitle sets the title shown in the terminal
+	SetTitle(title string)
+
+	Gui() *gocui.Gui
+
 	Log(text string)
 	HandleError(err error) bool
 	ShowInfo(message string)

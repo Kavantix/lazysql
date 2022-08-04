@@ -42,6 +42,9 @@ type Driver interface {
 	// CancelQuery cancels any running query
 	// Returns true if a query was cancelled
 	CancelQuery() bool
+
+	// Closes the database and cancels any running queries
+	Close() error
 }
 
 type baseDriver struct {
@@ -64,6 +67,11 @@ func DatabaseNames(databases []Database) []string {
 // TableNames converts a slice of Table to their names
 func TableNames(tables []Table) []string {
 	return *(*[]string)(unsafe.Pointer(&tables))
+}
+
+func (b *baseDriver) Close() error {
+	b.CancelQuery()
+	return b.Db.Close()
 }
 
 func (b *baseDriver) CancelQuery() bool {

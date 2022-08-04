@@ -1,4 +1,4 @@
-package main
+package layouts
 
 import (
 	"fmt"
@@ -80,21 +80,6 @@ func NewQueryEditor(g *gocui.Gui, context gui.DatabaseContext) (*QueryEditor, er
 		}); err != nil {
 			return nil, err
 		}
-		if err := g.SetKeybinding(q.name, gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-			switch q.mode {
-			case ModeInsert:
-				q.mode = ModeNormal
-			case ModeNormal:
-				if !context.CancelQuery() {
-					return gocui.ErrQuit
-				}
-			case ModeVisual:
-				q.mode = ModeNormal
-			}
-			return nil
-		}); err != nil {
-			return nil, err
-		}
 		queryView.Editor = q
 		queryView.Editable = true
 		queryView.Wrap = true
@@ -138,7 +123,11 @@ func (q *QueryEditor) Paint() {
 		highlighting.CustomFormatter.SelectionEnd = q.selectionEnd
 	}
 	q.view.Title = fmt.Sprintf("%s (%s)", q.name, q.ModeName())
-	ClearPreserveOrigin(q.view)
+
+	ox, oy := q.view.Origin()
+	q.view.Clear()
+	q.view.SetOrigin(ox, oy)
+
 	if q.query != "" {
 		quick.Highlight(q.view, q.query, "mysql", highlighting.CustomFormatter.Name(), "monokai")
 	}
@@ -204,10 +193,16 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		case "ciw":
 			start := q.startOfCurrentWord()
 			end := q.endOfCurrentWord() + 1
-			if end < len(q.query) && end > start {
-				q.query = q.query[:start] + q.query[end:]
-				q.cursor = start
-				q.mode = ModeInsert
+			if end > start {
+				if end >= len(q.query) {
+					q.query = q.query[:start]
+					q.cursor = start
+					q.mode = ModeInsert
+				} else {
+					q.query = q.query[:start] + q.query[end:]
+					q.cursor = start
+					q.mode = ModeInsert
+				}
 			}
 			q.previousCharacters = []rune{}
 		case "gv":

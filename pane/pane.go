@@ -48,11 +48,6 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 	if err := g.SetKeybinding(name, gocui.KeySpace, gocui.ModNone, p.onSpace); err != nil {
 		log.Panicln(err)
 	}
-	if err := g.SetKeybinding(name, gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		return gocui.ErrQuit
-	}); err != nil {
-		log.Panicln(err)
-	}
 	if err := g.SetKeybinding(name, 'j', gocui.ModNone, p.onCursorDown); err != nil {
 		log.Panicln(err)
 	}
