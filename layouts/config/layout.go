@@ -1,14 +1,23 @@
-package layouts
+package _configLayout
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/Kavantix/lazysql/config"
 	"github.com/Kavantix/lazysql/database"
+	"github.com/Kavantix/lazysql/gui"
 	"github.com/awesome-gocui/gocui"
 )
 
-func ShowConfigLayout(context popupContext) {
+type baseContext interface {
+	gui.Context
+	LayoutPopupView()
+	InitPopupView()
+	ShowDatabaseLayout(database.Driver, []database.Database)
+}
+
+func Show(context baseContext) {
 	g := context.Gui()
 	configPane, err := config.NewConfigPane(func(host string, port int, user, password string) {
 		dsn := database.Dsn{
@@ -30,7 +39,7 @@ func ShowConfigLayout(context popupContext) {
 		if err != nil {
 			context.ShowError(err.Error())
 		} else {
-			ShowDatabaseLayout(context, db, databases)
+			context.ShowDatabaseLayout(db, databases)
 		}
 	},
 		context,
@@ -49,4 +58,10 @@ func ShowConfigLayout(context popupContext) {
 
 	context.InitPopupView()
 	checkErr(err)
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Panicln(err)
+	}
 }

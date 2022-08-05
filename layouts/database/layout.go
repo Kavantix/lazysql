@@ -1,4 +1,4 @@
-package layouts
+package _databaseLayout
 
 import (
 	"fmt"
@@ -12,14 +12,8 @@ import (
 	"github.com/awesome-gocui/gocui"
 )
 
-type popupContext interface {
-	gui.Context
-	LayoutPopupView()
-	InitPopupView()
-}
-
 type databaseContext struct {
-	popupContext
+	baseContext
 
 	db               database.Driver
 	databases        []database.Database
@@ -32,19 +26,20 @@ type databaseContext struct {
 	queryEditor                          *QueryEditor
 }
 
-func checkErr(err error) {
-	if err != nil {
-		log.Panicln(err)
-	}
+type baseContext interface {
+	gui.Context
+	LayoutPopupView()
+	InitPopupView()
+	ShowConfigLayout()
 }
 
-func ShowDatabaseLayout(popupContext popupContext, db database.Driver, databases []database.Database) {
+func Show(baseContext baseContext, db database.Driver, databases []database.Database) {
 	context := &databaseContext{
-		popupContext: popupContext,
-		db:           db,
-		databases:    databases,
+		baseContext: baseContext,
+		db:          db,
+		databases:   databases,
 	}
-	g := popupContext.Gui()
+	g := context.Gui()
 
 	g.SetManagerFunc(context.layout)
 	checkErr(g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
@@ -53,7 +48,7 @@ func ShowDatabaseLayout(popupContext popupContext, db database.Driver, databases
 			context.ShowError(err.Error())
 			return nil
 		}
-		ShowConfigLayout(popupContext)
+		context.ShowConfigLayout()
 		return nil
 	}))
 
@@ -83,7 +78,7 @@ func ShowDatabaseLayout(popupContext popupContext, db database.Driver, databases
 		context.resultsPane.Clear()
 	})
 
-	popupContext.InitPopupView()
+	context.InitPopupView()
 	context.resultsPane = NewResultsPane(g)
 
 	context.queryEditor, err = NewQueryEditor(g, context)
@@ -251,4 +246,10 @@ func (context *databaseContext) currentViewUp(g *gocui.Gui, v *gocui.View) error
 		context.tablesPane.Select()
 	}
 	return nil
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Panicln(err)
+	}
 }
