@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Kavantix/lazysql/database"
-	"github.com/Kavantix/lazysql/gui"
-	"github.com/Kavantix/lazysql/highlighting"
+	"github.com/Kavantix/lazysql/internal/database"
+	"github.com/Kavantix/lazysql/internal/gui"
+	"github.com/Kavantix/lazysql/internal/highlighting"
 	"github.com/alecthomas/chroma/quick"
 	"github.com/awesome-gocui/gocui"
 )

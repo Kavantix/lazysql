@@ -4,8 +4,8 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/Kavantix/lazysql/database"
-	"github.com/Kavantix/lazysql/gui"
+	"github.com/Kavantix/lazysql/internal/database"
+	"github.com/Kavantix/lazysql/internal/gui"
 	"github.com/awesome-gocui/gocui"
 )
 

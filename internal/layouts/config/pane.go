@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Kavantix/lazysql/gui"
-	. "github.com/Kavantix/lazysql/pane"
+	"github.com/Kavantix/lazysql/internal/gui"
+	. "github.com/Kavantix/lazysql/internal/pane"
 	"github.com/awesome-gocui/gocui"
 )
 

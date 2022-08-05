@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Kavantix/lazysql/database"
-	. "github.com/Kavantix/lazysql/pane"
+	"github.com/Kavantix/lazysql/internal/database"
+	. "github.com/Kavantix/lazysql/internal/pane"
 	"github.com/awesome-gocui/gocui"
 )
 

@@ -1,10 +1,10 @@
 package layouts
 
 import (
-	"github.com/Kavantix/lazysql/database"
-	"github.com/Kavantix/lazysql/gui"
-	configLayout "github.com/Kavantix/lazysql/layouts/config"
-	databaseLayout "github.com/Kavantix/lazysql/layouts/database"
+	"github.com/Kavantix/lazysql/internal/database"
+	"github.com/Kavantix/lazysql/internal/gui"
+	configLayout "github.com/Kavantix/lazysql/internal/layouts/config"
+	databaseLayout "github.com/Kavantix/lazysql/internal/layouts/database"
 )
 
 type popupContext interface {

@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Kavantix/lazysql/layouts"
+	"github.com/Kavantix/lazysql/internal/layouts"
 
-	"github.com/Kavantix/lazysql/popup"
+	"github.com/Kavantix/lazysql/internal/popup"
 
 	"github.com/awesome-gocui/gocui"
 	"github.com/joho/godotenv"

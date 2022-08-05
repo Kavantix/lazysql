@@ -5,10 +5,10 @@ import (
 	"log"
 	"strings"
 
-	"github.com/Kavantix/lazysql/database"
-	"github.com/Kavantix/lazysql/gui"
-	. "github.com/Kavantix/lazysql/pane"
-	. "github.com/Kavantix/lazysql/results"
+	"github.com/Kavantix/lazysql/internal/database"
+	"github.com/Kavantix/lazysql/internal/gui"
+	. "github.com/Kavantix/lazysql/internal/layouts/database/results"
+	. "github.com/Kavantix/lazysql/internal/pane"
 	"github.com/awesome-gocui/gocui"
 )
 

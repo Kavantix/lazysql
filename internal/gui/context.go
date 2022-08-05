@@ -1,7 +1,7 @@
 package gui
 
 import (
-	"github.com/Kavantix/lazysql/database"
+	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/awesome-gocui/gocui"
 )
 
