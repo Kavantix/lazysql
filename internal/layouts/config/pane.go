@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Kavantix/lazysql/internal/gui"
-	. "github.com/Kavantix/lazysql/internal/pane"
 	"github.com/awesome-gocui/gocui"
 )
 
@@ -17,7 +16,7 @@ func (h *Host) String() string {
 	return h.Name
 }
 
-func (h *Host) EqualsPaneable(other Paneable) bool {
+func (h *Host) EqualsPaneable(other gui.Paneable) bool {
 	if other == nil {
 		return false
 	}
@@ -35,7 +34,7 @@ type ConfigPane struct {
 	nameTextBox, hostTextBox, portTextBox *textBox
 	userTextBox, passwordTextBox          *textBox
 	connectButton, saveButton             *button
-	hostsPane                             *Pane[*Host]
+	hostsPane                             *gui.Pane[*Host]
 	hosts                                 []*Host
 }
 
@@ -82,7 +81,7 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 	})
 
 	{
-		c.hostsPane = NewPane[*Host](g, "Hosts")
+		c.hostsPane = gui.NewPane[*Host](g, "Hosts")
 		c.setHostsPaneContentWithDummy()
 		c.hostsPane.OnSelectItem(func(item *Host) {
 			if item != c.selectedHost {

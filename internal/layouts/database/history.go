@@ -5,14 +5,14 @@ import (
 	"strings"
 
 	"github.com/Kavantix/lazysql/internal/database"
-	. "github.com/Kavantix/lazysql/internal/pane"
+	"github.com/Kavantix/lazysql/internal/gui"
 	"github.com/awesome-gocui/gocui"
 )
 
 type HistoryPane struct {
 	queries        []*paneableQuery
 	g              *gocui.Gui
-	pane           *Pane[*paneableQuery]
+	pane           *gui.Pane[*paneableQuery]
 	lastId         int
 	onExecuteQuery func(query database.Query)
 }
@@ -26,14 +26,14 @@ func (p *paneableQuery) String() string {
 	return fmt.Sprintf("%d: %s", p.id, strings.ReplaceAll(string(p.value), "\n", " "))
 }
 
-func (p *paneableQuery) EqualsPaneable(other Paneable) bool {
+func (p *paneableQuery) EqualsPaneable(other gui.Paneable) bool {
 	return p == other
 }
 
 func NewHistoryPane(g *gocui.Gui, onSelectQuery func(query database.Query)) *HistoryPane {
 	historyPane := &HistoryPane{
 		g:              g,
-		pane:           NewPane[*paneableQuery](g, "History"),
+		pane:           gui.NewPane[*paneableQuery](g, "History"),
 		onExecuteQuery: onSelectQuery,
 	}
 	historyPane.pane.OnSelectItem(func(item *paneableQuery) {

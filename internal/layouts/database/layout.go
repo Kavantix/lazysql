@@ -8,7 +8,6 @@ import (
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/Kavantix/lazysql/internal/gui"
 	. "github.com/Kavantix/lazysql/internal/layouts/database/results"
-	. "github.com/Kavantix/lazysql/internal/pane"
 	"github.com/awesome-gocui/gocui"
 )
 
@@ -20,7 +19,7 @@ type databaseContext struct {
 	selectedDatabase database.Database
 	selectedTable    database.Table
 
-	databasesPane, tablesPane, queryPane *Pane[PaneableString]
+	databasesPane, tablesPane, queryPane *gui.Pane[gui.PaneableString]
 	resultsPane                          *ResultsPane
 	historyPane                          *HistoryPane
 	queryEditor                          *QueryEditor
@@ -62,11 +61,11 @@ func Show(baseContext baseContext, db database.Driver, databases []database.Data
 		return nil
 	})
 	checkErr(err)
-	context.databasesPane = NewPane[PaneableString](g, "Databases")
+	context.databasesPane = gui.NewPane[gui.PaneableString](g, "Databases")
 	databaseNames := database.DatabaseNames(context.databases)
-	paneableDatabases := make([]PaneableString, len(databaseNames))
+	paneableDatabases := make([]gui.PaneableString, len(databaseNames))
 	for i, database := range databaseNames {
-		paneableDatabases[i] = PaneableString(database)
+		paneableDatabases[i] = gui.PaneableString(database)
 	}
 	context.databasesPane.SetContent(paneableDatabases)
 	context.databasesPane.OnSelectItem(context.onSelectDatabase)
@@ -84,7 +83,7 @@ func Show(baseContext baseContext, db database.Driver, databases []database.Data
 	context.queryEditor, err = NewQueryEditor(g, context)
 	checkErr(err)
 
-	context.tablesPane = NewPane[PaneableString](g, "Tables")
+	context.tablesPane = gui.NewPane[gui.PaneableString](g, "Tables")
 	context.tablesPane.OnSelectItem(context.onSelectTable)
 }
 
@@ -160,7 +159,7 @@ func (context *databaseContext) layout(g *gocui.Gui) error {
 	return nil
 }
 
-func (context *databaseContext) onSelectDatabase(db PaneableString) {
+func (context *databaseContext) onSelectDatabase(db gui.PaneableString) {
 	context.changeDatabase(context.Gui(), database.Database(db))
 }
 
@@ -187,9 +186,9 @@ func (context *databaseContext) changeDatabase(g *gocui.Gui, dbname database.Dat
 				context.tablesPane.SetCursor(0)
 				context.tablesPane.Select()
 				tableNames := database.TableNames(newTables)
-				tables := make([]PaneableString, len(tableNames))
+				tables := make([]gui.PaneableString, len(tableNames))
 				for i, table := range tableNames {
-					tables[i] = PaneableString(table)
+					tables[i] = gui.PaneableString(table)
 				}
 				context.tablesPane.SetContent(tables)
 				return nil
@@ -198,7 +197,7 @@ func (context *databaseContext) changeDatabase(g *gocui.Gui, dbname database.Dat
 	}
 }
 
-func (context *databaseContext) onSelectTable(table PaneableString) {
+func (context *databaseContext) onSelectTable(table gui.PaneableString) {
 	context.changeTable(context.Gui(), database.Table(table))
 }
 
