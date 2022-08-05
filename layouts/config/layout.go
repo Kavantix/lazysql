@@ -4,7 +4,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/Kavantix/lazysql/config"
 	"github.com/Kavantix/lazysql/database"
 	"github.com/Kavantix/lazysql/gui"
 	"github.com/awesome-gocui/gocui"
@@ -19,7 +18,7 @@ type baseContext interface {
 
 func Show(context baseContext) {
 	g := context.Gui()
-	configPane, err := config.NewConfigPane(func(host string, port int, user, password string) {
+	configPane, err := NewConfigPane(func(host string, port int, user, password string) {
 		dsn := database.Dsn{
 			Host:     host,
 			Port:     strconv.Itoa(port),

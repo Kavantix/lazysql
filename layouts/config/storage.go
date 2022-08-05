@@ -1,4 +1,4 @@
-package config
+package _configLayout
 
 import (
 	"bytes"

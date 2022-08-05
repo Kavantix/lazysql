@@ -24,6 +24,8 @@ func New(g *gocui.Gui) (*View, error) {
 
 	var err error
 	v.view, err = g.SetView(popupViewName, 0, 0, 1, 1, 0)
+	v.view.Visible = false
+	g.SetViewOnBottom(popupViewName)
 	v.view.Wrap = true
 	v.g.SetKeybinding(popupViewName, gocui.KeyEsc, gocui.ModNone, v.hide)
 
@@ -116,9 +118,11 @@ func (v *View) Layout() {
 		}
 		v.g.SetView(popupViewName, left+1, contentTop, right-1, contentBottom, 0)
 	} else {
+		if v.view.Visible {
+			g.Highlight = v.previousHighlightValue
+			g.SetCurrentView(v.previouslySelectedViewName)
+		}
 		v.view.Visible = false
 		g.SetViewOnBottom(popupViewName)
-		g.SetCurrentView(v.previouslySelectedViewName)
-		g.Highlight = v.previousHighlightValue
 	}
 }

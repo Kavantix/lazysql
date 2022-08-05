@@ -13,22 +13,18 @@ type popupContext interface {
 	InitPopupView()
 }
 
-type layoutContext struct {
+type LayoutContext struct {
 	popupContext
 }
 
-func (c *layoutContext) ShowConfigLayout() {
-	ShowConfigLayout(c)
+func New(context popupContext) *LayoutContext {
+	return &LayoutContext{context}
 }
 
-func (c *layoutContext) ShowDatabaseLayout(db database.Driver, databases []database.Database) {
-	ShowDatabaseLayout(c, db, databases)
+func (c *LayoutContext) ShowConfigLayout() {
+	configLayout.Show(c)
 }
 
-func ShowConfigLayout(context popupContext) {
-	configLayout.Show(&layoutContext{context})
-}
-
-func ShowDatabaseLayout(context popupContext, db database.Driver, databases []database.Database) {
-	databaseLayout.Show(&layoutContext{context}, db, databases)
+func (c *LayoutContext) ShowDatabaseLayout(db database.Driver, databases []database.Database) {
+	databaseLayout.Show(c, db, databases)
 }

@@ -31,8 +31,8 @@ func main() {
 	g.SelFgColor = gocui.ColorWhite + 8 + gocui.AttrBold
 	g.Highlight = true
 
-	context := &mainContext{g: g}
-	layouts.ShowConfigLayout(context)
+	context := layouts.New(&mainContext{g: g})
+	context.ShowConfigLayout()
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)

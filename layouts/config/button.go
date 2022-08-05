@@ -1,4 +1,4 @@
-package config
+package _configLayout
 
 import (
 	"github.com/awesome-gocui/gocui"
