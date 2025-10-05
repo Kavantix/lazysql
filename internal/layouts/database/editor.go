@@ -166,6 +166,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 			q.redoStack = []queryState{}
 		}
 	}()
+	query := q.query
 	if time.Since(q.lastKeyTime).Milliseconds() > 500 {
 		q.previousCharacters = []rune{}
 	} else if ch != 0 && mod == 0 && len(q.previousCharacters) > 0 {
@@ -178,28 +179,31 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 				if end < len(q.query)-1 {
 					end += 1
 				}
-				q.query = q.query[:start] + q.query[end:]
+				query = q.query[:start] + q.query[end:]
 			}
 			q.previousCharacters = []rune{}
 		case "cc":
 			start := q.startOfCurrentLine()
 			if len(q.query) > 0 {
 				end := q.endOfCurrentLine()
-				q.query = q.query[:start] + q.query[end:]
+				query = q.query[:start] + q.query[end:]
 			}
 			q.cursor = start
 			q.mode = ModeInsert
 			q.previousCharacters = []rune{}
 		case "ciw":
-			start := q.startOfCurrentWord()
+			q.cursor = q.startOfCurrentWord()
+			fallthrough
+		case "cw":
+			start := q.cursor
 			end := q.endOfCurrentWord() + 1
 			if end > start {
 				if end >= len(q.query) {
-					q.query = q.query[:start]
+					query = q.query[:start]
 					q.cursor = start
 					q.mode = ModeInsert
 				} else {
-					q.query = q.query[:start] + q.query[end:]
+					query = q.query[:start] + q.query[end:]
 					q.cursor = start
 					q.mode = ModeInsert
 				}
@@ -207,6 +211,10 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 			q.previousCharacters = []rune{}
 		case "gv":
 			q.mode = ModeVisual
+		}
+		if query != q.query {
+			q.undoStack = append(q.undoStack, q.queryState)
+			q.query = query
 		}
 		return
 	}
@@ -238,6 +246,7 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	case ch == 'o':
 		q.mode = ModeInsert
 		q.cursor = q.endOfCurrentLine()
+		q.undoStack = append(q.undoStack, q.queryState)
 		q.query = q.insertNewlineAtCursor(q.query)
 	case ch == 'e':
 		q.cursor = q.nextEndOfWord()
@@ -437,11 +446,11 @@ func (q *QueryEditor) startOfCurrentWord() int {
 	} else {
 		queryBeforeCursor = q.query[:q.cursor]
 	}
-	lastWhiteSpace := strings.LastIndexAny(queryBeforeCursor, " \n")
-	if lastWhiteSpace < 0 {
+	lastNonWord := strings.LastIndexAny(queryBeforeCursor, " \n,.'\"")
+	if lastNonWord < 0 {
 		return 0
 	} else {
-		return lastWhiteSpace + 1
+		return lastNonWord + 1
 	}
 }
 
@@ -456,11 +465,11 @@ func (q *QueryEditor) endOfCurrentWord() int {
 		return q.cursor
 	}
 	queryAfterCursor := q.query[q.cursor:]
-	firstWhiteSpace := strings.IndexAny(queryAfterCursor, " \n")
-	if firstWhiteSpace < 0 {
+	firstNonWord := strings.IndexAny(queryAfterCursor, " \n,.'\"")
+	if firstNonWord < 0 {
 		return len(q.query) - 1
 	} else {
-		return q.cursor + firstWhiteSpace - 1
+		return q.cursor + firstNonWord - 1
 	}
 }
 
