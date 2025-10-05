@@ -3,19 +3,23 @@ package gui
 import (
 	"fmt"
 	"log"
+	"strings"
+	"weak"
 
 	"github.com/awesome-gocui/gocui"
 )
 
 type Pane[T Paneable] struct {
-	Name         string
-	cursor       int
-	scrollOffset int
-	Selected     T
-	content      []T
-	View         *gocui.View
-	g            *gocui.Gui
-	onSelectItem func(item T)
+	Name            string
+	cursor          int
+	scrollOffset    int
+	Selected        T
+	content         []T
+	filteredContent []T
+	View            *gocui.View
+	g               *gocui.Gui
+	onSelectItem    func(item T)
+	filter          string
 }
 
 type Paneable interface {
@@ -33,6 +37,48 @@ func (s PaneableString) EqualsPaneable(other Paneable) bool {
 	return other.(PaneableString) == s
 }
 
+type paneEditor[T Paneable] struct {
+	pane weak.Pointer[Pane[T]]
+}
+
+// Edit implements gocui.Editor.
+func (e paneEditor[T]) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	pane := e.pane.Value()
+	if pane == nil {
+		return
+	}
+	filter := pane.filter
+	switch key {
+	case gocui.KeyBackspace:
+	case gocui.KeyBackspace2:
+		if len(filter) > 0 {
+			filter = filter[:len(filter)-1]
+		}
+	case gocui.KeyEnter:
+		pane.View.Editable = false
+	case gocui.KeySpace:
+		filter += " "
+	case gocui.KeyEsc:
+		if v.Editable {
+			filter = ""
+			pane.View.Editable = false
+		} else {
+			filter = ""
+		}
+	}
+	if key == 0 {
+		filter += string(ch)
+	}
+	pane.applyFilter(filter)
+}
+
+type keybinding struct {
+	mod gocui.Modifier
+	key gocui.Key
+	ch  rune
+	fn  func()
+}
+
 func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 	view, _ := g.SetView(name, 0, 0, 1, 1, 0)
 	view.Visible = true
@@ -45,33 +91,34 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 		View:         view,
 		g:            g,
 	}
-	if err := g.SetKeybinding(name, gocui.KeySpace, gocui.ModNone, p.onSpace); err != nil {
-		log.Panicln(err)
+	view.Editor = paneEditor[T]{pane: weak.Make(p)}
+	keybindings := []keybinding{
+		{ch: 'j', fn: p.onCursorDown},
+		{ch: 'k', fn: p.onCursorUp},
+		{key: gocui.KeySpace, fn: p.onSpace},
+		{key: gocui.KeyArrowDown, fn: p.onCursorDown},
+		{key: gocui.KeyArrowUp, fn: p.onCursorUp},
+		{key: gocui.MouseWheelUp, fn: p.onCursorUp},
+		{key: gocui.MouseWheelDown, fn: p.onCursorDown},
+		{key: gocui.MouseLeft, fn: p.onMouseLeft},
+		{key: gocui.KeyEsc, fn: p.onEscape},
+		{ch: '/', fn: p.startFilter},
 	}
-	if err := g.SetKeybinding(name, 'j', gocui.ModNone, p.onCursorDown); err != nil {
-		log.Panicln(err)
-	}
-	if err := g.SetKeybinding(name, gocui.KeyArrowDown, gocui.ModNone, p.onCursorDown); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding(name, 'k', gocui.ModNone, p.onCursorUp); err != nil {
-		log.Panicln(err)
-	}
-	if err := g.SetKeybinding(name, gocui.KeyArrowUp, gocui.ModNone, p.onCursorUp); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding(name, gocui.MouseWheelUp, gocui.ModNone, p.onCursorUp); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding(name, gocui.MouseWheelDown, gocui.ModNone, p.onCursorDown); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding(name, gocui.MouseLeft, gocui.ModNone, p.onMouseLeft); err != nil {
-		log.Panicln(err)
+	for _, key := range keybindings {
+		var k any = key.key
+		if key.key == 0 {
+			k = key.ch
+		}
+		if err := g.SetKeybinding(name, k, key.mod, func(g *gocui.Gui, v *gocui.View) error {
+			if view.Editable {
+				view.Editor.Edit(v, key.key, key.ch, key.mod)
+			} else {
+				key.fn()
+			}
+			return nil
+		}); err != nil {
+			log.Panicln(err)
+		}
 	}
 
 	return p
@@ -82,17 +129,54 @@ func (p *Pane[T]) selectItem(item T) {
 	p.onSelectItem(item)
 }
 
-func (p *Pane[T]) onMouseLeft(g *gocui.Gui, v *gocui.View) error {
+func (p *Pane[T]) applyFilter(newFilter string) {
+	p.filter = newFilter
+	if p.View.Editable || p.filter != "" {
+		p.View.Title = fmt.Sprintf("%s /%s", p.Name, newFilter)
+		p.filteredContent = []T{}
+		parts := strings.Split(newFilter, " ")
+		for _, content := range p.content {
+			all := true
+			for _, part := range parts {
+				if part == "" {
+					continue
+				}
+				if !strings.Contains(content.String(), part) {
+					all = false
+					break
+				}
+			}
+			if all {
+				p.filteredContent = append(p.filteredContent, content)
+			}
+		}
+		p.limitCursor(p.cursor)
+	} else {
+		p.View.Title = p.Name
+		p.filteredContent = p.content
+		p.limitCursor(p.cursor)
+	}
+}
+
+func (p *Pane[T]) onEscape() {
+	p.applyFilter("")
+}
+
+func (p *Pane[T]) startFilter() {
+	p.View.Editable = true
+	p.applyFilter(p.filter)
+}
+
+func (p *Pane[T]) onMouseLeft() {
 	p.Select()
-	_, cy := v.Cursor()
+	_, cy := p.View.Cursor()
 	if cy+p.scrollOffset == p.cursor {
-		if len(p.content) > 0 {
-			p.selectItem(p.content[p.cursor])
+		if len(p.filteredContent) > 0 {
+			p.selectItem(p.filteredContent[p.cursor])
 		}
 	} else {
 		p.SetCursor(cy + p.scrollOffset)
 	}
-	return nil
 }
 
 func (p *Pane[T]) SetCursor(cursor int) {
@@ -100,7 +184,7 @@ func (p *Pane[T]) SetCursor(cursor int) {
 }
 
 func (p *Pane[T]) limitCursor(cursor int) (newCursor int) {
-	length := len(p.content)
+	length := len(p.filteredContent)
 	if cursor >= length {
 		if length == 0 {
 			newCursor = 0
@@ -121,29 +205,27 @@ func (p *Pane[T]) limitCursor(cursor int) (newCursor int) {
 	return
 }
 
-func (p *Pane[T]) onCursorDown(g *gocui.Gui, v *gocui.View) error {
+func (p *Pane[T]) onCursorDown() {
 	p.Select()
 	p.cursor = p.limitCursor(p.cursor + 1)
-	return nil
 }
-func (p *Pane[T]) onCursorUp(g *gocui.Gui, v *gocui.View) error {
+func (p *Pane[T]) onCursorUp() {
 	p.Select()
 	p.cursor = p.limitCursor(p.cursor - 1)
-	return nil
 }
 
 func (p *Pane[T]) SetContent(content []T) {
 	p.content = content
+	p.filteredContent = content
 	p.cursor = p.limitCursor(p.cursor)
 }
 
-func (p *Pane[T]) onSpace(g *gocui.Gui, v *gocui.View) error {
-	if p.onSelectItem == nil || len(p.content) == 0 {
-		return nil
+func (p *Pane[T]) onSpace() {
+	if p.onSelectItem == nil || len(p.filteredContent) == 0 {
+		return
 	}
-	item := p.content[p.cursor]
+	item := p.filteredContent[p.cursor]
 	p.selectItem(item)
-	return nil
 }
 
 func (p *Pane[T]) Position(left, top, right, bottom int) {
@@ -151,8 +233,8 @@ func (p *Pane[T]) Position(left, top, right, bottom int) {
 	p.g.SetView(p.Name, left, top, right, bottom, 0)
 	p.limitCursor(p.cursor)
 	_, sy := p.View.Size()
-	if len(p.content)-p.scrollOffset < sy {
-		p.scrollOffset -= sy - (len(p.content) - p.scrollOffset)
+	if len(p.filteredContent)-p.scrollOffset < sy {
+		p.scrollOffset -= sy - (len(p.filteredContent) - p.scrollOffset)
 	}
 	if p.scrollOffset < 0 {
 		p.scrollOffset = 0
@@ -182,9 +264,9 @@ func boldDarkBlue(text string) string {
 func (p *Pane[T]) Paint() {
 	_, sy := p.View.Size()
 	p.View.Clear()
-	for i := 0; i < sy && i+p.scrollOffset < len(p.content); i += 1 {
+	for i := 0; i < sy && i+p.scrollOffset < len(p.filteredContent); i += 1 {
 		index := p.scrollOffset + i
-		item := p.content[index]
+		item := p.filteredContent[index]
 		underCursor := p.g.CurrentView() == p.View && p.cursor == index
 		selected := item.EqualsPaneable(p.Selected)
 		color := gocui.ColorWhite

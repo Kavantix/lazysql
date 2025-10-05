@@ -69,7 +69,9 @@ func Show(baseContext baseContext, db database.Driver, databases []database.Data
 		return gocui.ErrQuit
 	}))
 	checkErr(g.SetKeybinding("", 'h', gocui.ModNone, context.currentViewUp))
+	checkErr(g.SetKeybinding("", gocui.KeyArrowLeft, gocui.ModNone, context.currentViewUp))
 	checkErr(g.SetKeybinding("", 'l', gocui.ModNone, context.currentViewDown))
+	checkErr(g.SetKeybinding("", gocui.KeyArrowRight, gocui.ModNone, context.currentViewDown))
 	err := g.SetKeybinding("", 'c', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		g.SetCurrentView("Query")
 		return nil

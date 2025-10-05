@@ -111,7 +111,9 @@ func (r *ResultsPane) hideColumnContent(g *gocui.Gui, v *gocui.View) error {
 
 func (r *ResultsPane) unfocus(g *gocui.Gui, v *gocui.View) error {
 	g.DeleteKeybinding(r.Name, 'h', gocui.ModNone)
+	g.DeleteKeybinding(r.Name, gocui.KeyArrowLeft, gocui.ModNone)
 	g.DeleteKeybinding(r.Name, 'l', gocui.ModNone)
+	g.DeleteKeybinding(r.Name, gocui.KeyArrowRight, gocui.ModNone)
 	g.DeleteKeybinding(r.Name, 'j', gocui.ModNone)
 	g.DeleteKeybinding(r.Name, 'k', gocui.ModNone)
 	g.DeleteKeybinding(r.Name, gocui.KeySpace, gocui.ModNone)
@@ -125,7 +127,9 @@ func (r *ResultsPane) focus(g *gocui.Gui, v *gocui.View) error {
 	g.DeleteKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone)
 	g.SetKeybinding(r.Name, gocui.KeyEnter, gocui.ModNone, r.showColumnContent)
 	g.SetKeybinding(r.Name, 'h', gocui.ModNone, r.moveLeft)
+	g.SetKeybinding(r.Name, gocui.KeyArrowLeft, gocui.ModNone, r.moveLeft)
 	g.SetKeybinding(r.Name, 'l', gocui.ModNone, r.moveRight)
+	g.SetKeybinding(r.Name, gocui.KeyArrowRight, gocui.ModNone, r.moveRight)
 	g.SetKeybinding(r.Name, 'j', gocui.ModNone, r.moveDown)
 	g.SetKeybinding(r.Name, 'k', gocui.ModNone, r.moveUp)
 	g.SetKeybinding(r.Name, gocui.KeyEsc, gocui.ModNone, r.unfocus)
