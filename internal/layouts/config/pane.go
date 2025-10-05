@@ -28,9 +28,10 @@ type ConfigPane struct {
 	view         *gocui.View
 	g            *gocui.Gui
 	selectedHost *Host
-	onConnect    func(host string, port int, user, password string)
+	onConnect    func(host Host)
 	context      gui.Context
 
+	dbTypeTextBox                         *textBox
 	nameTextBox, hostTextBox, portTextBox *textBox
 	userTextBox, passwordTextBox          *textBox
 	connectButton, saveButton             *button
@@ -38,7 +39,7 @@ type ConfigPane struct {
 	hosts                                 []*Host
 }
 
-func NewConfigPane(onConnect func(host string, port int, user, password string), context gui.Context) (*ConfigPane, error) {
+func NewConfigPane(onConnect func(host Host), context gui.Context) (*ConfigPane, error) {
 	hosts, err := LoadHosts()
 	if err != nil {
 		return nil, fmt.Errorf("Cannot load config file:\n%s\n", err)
@@ -87,13 +88,13 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 			if item != c.selectedHost {
 				c.changeHost(item)
 			} else {
-				c.selectNameTextbox()
+				c.selectDbTypeTextBox()
 			}
 		})
 	}
 
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		c.selectNameTextbox()
+		c.selectDbTypeTextBox()
 		return nil
 	})
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
@@ -102,14 +103,15 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 	})
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		host := c.hostsPane.Selected
-		c.onConnect(host.Host, host.Port, host.User, host.Password)
+		c.onConnect(*host)
 		return nil
 	})
 	g.SetKeybinding(c.hostsPane.Name, 'q', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		return gocui.ErrQuit
 	})
 
-	c.nameTextBox, _ = newTextBox(g, "Name", "", false, c.selectHostsPane, c.selectHostTextbox)
+	c.dbTypeTextBox, _ = newTextBox(g, "Type (postgresql, mysql)", "postgresql", false, c.selectHostsPane, c.selectNameTextbox)
+	c.nameTextBox, _ = newTextBox(g, "Name", "", false, c.selectDbTypeTextBox, c.selectHostTextbox)
 	c.hostTextBox, _ = newTextBox(g, "Host", "", false, c.selectNameTextbox, c.selectPort)
 	c.portTextBox, _ = newTextBox(g, "Port", "", false, c.selectHostTextbox, c.selectUser)
 	c.userTextBox, _ = newTextBox(g, "Username", "", false, c.selectPort, c.selectPassword)
@@ -119,16 +121,12 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		c.selectPassword,
 		c.selectSave,
 		func() {
-			port, err := strconv.Atoi(c.portTextBox.content)
-			if err != nil || port < 1 || port > 65535 {
-				c.context.HandleError(errors.New("port should be a valid integer between 1 and 65535"))
+			host, err := c.hostFromTextBoxes()
+			if err != nil {
+				c.context.HandleError(err)
+				return
 			}
-			c.onConnect(
-				strings.TrimSpace(c.hostTextBox.content),
-				port,
-				strings.TrimSpace(c.userTextBox.content),
-				strings.TrimSpace(c.passwordTextBox.content),
-			)
+			c.onConnect(host)
 		})
 
 	c.saveButton, _ = newButton(g, "Save", c.selectConnect, c.selectHostsPane, c.onSave)
@@ -150,6 +148,10 @@ func (c *ConfigPane) setHostsPaneContentWithDummy() {
 
 func (c *ConfigPane) selectHostsPane() {
 	c.g.SetCurrentView(c.hostsPane.Name)
+}
+
+func (c *ConfigPane) selectDbTypeTextBox() {
+	c.g.SetCurrentView(c.dbTypeTextBox.Name)
 }
 
 func (c *ConfigPane) selectNameTextbox() {
@@ -180,12 +182,22 @@ func (c *ConfigPane) selectSave() {
 	c.g.SetCurrentView(c.saveButton.Name)
 }
 
-func (c *ConfigPane) onSave() {
+func (c *ConfigPane) hostFromTextBoxes() (Host, error) {
 	port, err := strconv.Atoi(c.portTextBox.content)
 	if err != nil || port < 1 || port > 65535 {
-		c.context.HandleError(errors.New("port should be a valid integer between 1 and 65535"))
+		return Host{}, errors.New("port should be a valid integer between 1 and 65535")
+	}
+	dbType := ""
+	switch strings.TrimSpace(c.dbTypeTextBox.content) {
+	case "postgres", "postgresql":
+		dbType = "postgresql"
+	case "mysql":
+		dbType = "mysql"
+	default:
+		return Host{}, fmt.Errorf("Unknown type, should be one of (postgresql, mysql)")
 	}
 	host := Host{
+		DbType:   dbType,
 		Name:     strings.TrimSpace(c.nameTextBox.content),
 		Host:     strings.TrimSpace(c.hostTextBox.content),
 		Port:     port,
@@ -194,7 +206,15 @@ func (c *ConfigPane) onSave() {
 	}
 
 	if host.Name == "" {
-		c.context.HandleError(errors.New("Host name cannot be empty"))
+		return Host{}, errors.New("Host name cannot be empty")
+	}
+	return host, nil
+}
+
+func (c *ConfigPane) onSave() {
+	host, err := c.hostFromTextBoxes()
+	if err != nil {
+		c.context.HandleError(err)
 		return
 	}
 
@@ -217,9 +237,11 @@ func (c *ConfigPane) onSave() {
 func (c *ConfigPane) changeHost(host *Host) {
 	c.selectedHost = host
 	if host.Name == newHostName {
+		c.dbTypeTextBox.SetContent("")
 		c.nameTextBox.SetContent("")
-		c.portTextBox.SetContent("3306")
+		c.portTextBox.SetContent("")
 	} else {
+		c.dbTypeTextBox.SetContent(host.DbType)
 		c.nameTextBox.SetContent(host.Name)
 		if host.Port == 0 {
 			c.portTextBox.SetContent("")
@@ -240,7 +262,8 @@ func (c *ConfigPane) Layout(g *gocui.Gui) error {
 		panic(err)
 	}
 	start := maxY - 3 - 23 + 3
-	c.nameTextBox.Layout(6, start, maxX-6, start+2)
+	c.dbTypeTextBox.Layout(6, start, 6+32, start+2)
+	c.nameTextBox.Layout(6+32+2, start, maxX-6, start+2)
 	c.hostTextBox.Layout(6, start+3, maxX-6, start+5)
 	c.portTextBox.Layout(6, start+6, maxX-6, start+8)
 	c.userTextBox.Layout(6, start+9, maxX-6, start+11)

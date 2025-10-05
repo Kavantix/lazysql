@@ -1,10 +1,12 @@
 package _configLayout
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/Kavantix/lazysql/internal/database/drivers/mysqldriver"
+	"github.com/Kavantix/lazysql/internal/database/drivers/pgxdriver"
 	"github.com/Kavantix/lazysql/internal/gui"
 	"github.com/awesome-gocui/gocui"
 )
@@ -18,23 +20,28 @@ type baseContext interface {
 
 func Show(context baseContext) {
 	g := context.Gui()
-	configPane, err := NewConfigPane(func(host string, port int, user, password string) {
+	configPane, err := NewConfigPane(func(host Host) {
 		dsn := database.Dsn{
-			Host:     host,
-			Port:     uint16(port),
-			User:     user,
-			Password: password,
+			Host:     host.Host,
+			Port:     uint16(host.Port),
+			User:     host.User,
+			Password: host.Password,
 		}
-		db, err := mysqldriver.NewMysqlDriver(dsn)
+		var db database.Driver
+		var err error
+		switch host.DbType {
+		case "mysql":
+			db, err = mysqldriver.NewMysqlDriver(dsn)
+		case "postgresql":
+			db, err = pgxdriver.NewPgxDriver(dsn)
+		default:
+			err = fmt.Errorf("No driver for type: %s", host.DbType)
+		}
 		if err != nil {
 			context.ShowError(err.Error())
 			return
 		}
 		databases, err := db.Databases()
-		if err != nil {
-			context.ShowError(err.Error())
-			return
-		}
 		if err != nil {
 			context.ShowError(err.Error())
 		} else {

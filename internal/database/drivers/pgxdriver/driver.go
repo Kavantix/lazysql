@@ -3,6 +3,7 @@ package pgxdriver
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/jackc/pgx/v5"
@@ -18,25 +19,33 @@ type pgxDriver struct {
 
 // QueryForTable implements Driver.
 func (m *pgxDriver) QueryForTable(table database.Table, limit int) database.Query {
-	return database.Query(fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT %d", table, limit))
+	parts := strings.SplitN(string(table), ".", 2)
+	prefix := strings.Builder{}
+	if parts[0] != "public" {
+		prefix.WriteByte('"')
+		prefix.WriteString(parts[0])
+		prefix.WriteByte('"')
+		prefix.WriteByte('.')
+	}
+	return database.Query(fmt.Sprintf("SELECT *\nFROM %s\"%s\"\nLIMIT %d", prefix.String(), parts[1], limit))
 }
 
 func NewPgxDriver(dsn database.Dsn) (database.Driver, error) {
-	config := pgx.ConnConfig{}
-	port := dsn.Port
-	if port == 0 {
-		port = 5432
+	if dsn.Port == 0 {
+		dsn.Port = 5432
 	}
-	config.Host = dsn.Host
-	config.Port = dsn.Port
-	config.User = dsn.User
-	config.Password = dsn.Password
+	url := fmt.Sprintf("postgres://%s:%s@%s:%d",
+		dsn.User, dsn.Password, dsn.Host, dsn.Port)
+	config, err := pgx.ParseConfig(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
 	// config.TLSConfig = nil
 
 	driver := &pgxDriver{
-		config: config,
+		config: *config,
 		BaseDriver: database.BaseDriver{
-			Db: stdlib.OpenDB(config),
+			Db: stdlib.OpenDB(*config),
 		},
 	}
 
@@ -45,7 +54,7 @@ func NewPgxDriver(dsn database.Dsn) (database.Driver, error) {
 
 func (m *pgxDriver) Databases() ([]database.Database, error) {
 	databases := []database.Database{}
-	rows, err := m.Db.Query("SHOW DATABASES")
+	rows, err := m.Db.Query("select datname from pg_catalog.pg_database where not datistemplate order by datname")
 	if err != nil {
 		return databases, err
 	}
@@ -79,7 +88,11 @@ func (m *pgxDriver) Tables() ([]database.Table, error) {
 		return nil, errors.New("no database selected")
 	}
 	tables := []database.Table{}
-	rows, err := m.Db.Query("SHOW TABLES")
+	whereClause := "where schemaname not in ('pg_catalog', 'information_schema')"
+	if m.config.Database == "postgres" {
+		whereClause = ""
+	}
+	rows, err := m.Db.Query(fmt.Sprintf("SELECT schemaname || '.' || tablename FROM pg_catalog.pg_tables %s order by schemaname, tablename", whereClause))
 	if err != nil {
 		return tables, err
 	}

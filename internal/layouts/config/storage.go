@@ -11,6 +11,7 @@ import (
 
 type Host struct {
 	Name     string
+	DbType   string `yaml:"dbType"`
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
 	User     string `yaml:"user"`
@@ -32,8 +33,9 @@ func LoadHosts() ([]*Host, error) {
 		if errors.Is(err, fs.ErrNotExist) {
 			return []*Host{
 				{
-					Host: "localhost",
-					Port: 3306,
+					DbType: "postgresql",
+					Host:   "localhost",
+					Port:   5432,
 				},
 			}, nil
 		}
