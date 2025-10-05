@@ -5,7 +5,7 @@ A [lazygit](https://github.com/jesseduffield/lazygit) inspired terminal sql clie
 ## Supported databases
 
 - [x] MySql
-- [ ] Postgres
+- [x] Postgres
 
 ## Config
 
@@ -17,7 +17,7 @@ An example can be found in `hosts-example.yaml`
 - [x] Show errors in popup pane
 - [x] Highlight current database
 - [ ] Hosts pane
-- [ ] Configuring connections from UI
+- [x] Configuring connections from UI
 - [ ] Interactive results pane
     - [X] Moving around with hjkl/arrows
     - [x] Moving around with mouse
