@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 	"weak"
 
 	"github.com/awesome-gocui/gocui"
@@ -20,6 +21,11 @@ type Pane[T Paneable] struct {
 	g               *gocui.Gui
 	onSelectItem    func(item T)
 	filter          string
+	_lastKey        struct {
+		ch    rune
+		key   gocui.Key
+		setAt time.Time
+	}
 }
 
 type Paneable interface {
@@ -70,6 +76,15 @@ func (e paneEditor[T]) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Mod
 		filter += string(ch)
 	}
 	pane.applyFilter(filter)
+	pane._lastKey = struct {
+		ch    rune
+		key   gocui.Key
+		setAt time.Time
+	}{
+		ch:    ch,
+		key:   key,
+		setAt: time.Now(),
+	}
 }
 
 type keybinding struct {
@@ -103,6 +118,8 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 		{key: gocui.MouseLeft, fn: p.onMouseLeft},
 		{key: gocui.KeyEsc, fn: p.onEscape},
 		{ch: '/', fn: p.startFilter},
+		{ch: 'G', fn: p.toBottom},
+		{ch: 'g', fn: p.toTop},
 	}
 	for _, key := range keybindings {
 		var k any = key.key
@@ -115,6 +132,15 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 			} else {
 				key.fn()
 			}
+			p._lastKey = struct {
+				ch    rune
+				key   gocui.Key
+				setAt time.Time
+			}{
+				ch:    key.ch,
+				key:   key.key,
+				setAt: time.Now(),
+			}
 			return nil
 		}); err != nil {
 			log.Panicln(err)
@@ -122,6 +148,25 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 	}
 
 	return p
+}
+
+func (p *Pane[T]) lastKey() struct {
+	ch  rune
+	key gocui.Key
+} {
+	if time.Since(p._lastKey.setAt).Milliseconds() < 500 {
+		return struct {
+			ch  rune
+			key gocui.Key
+		}{
+			ch:  p._lastKey.ch,
+			key: p._lastKey.key,
+		}
+	}
+	return struct {
+		ch  rune
+		key gocui.Key
+	}{}
 }
 
 func (p *Pane[T]) selectItem(item T) {
@@ -167,10 +212,22 @@ func (p *Pane[T]) startFilter() {
 	p.applyFilter(p.filter)
 }
 
+func (p *Pane[T]) toTop() {
+	lastKey := p.lastKey()
+	if lastKey.ch == 'g' {
+		p.SetCursor(0)
+	}
+}
+
+func (p *Pane[T]) toBottom() {
+	p.SetCursor(len(p.content))
+}
+
 func (p *Pane[T]) onMouseLeft() {
+	lastKey := p.lastKey()
 	p.Select()
 	_, cy := p.View.Cursor()
-	if cy+p.scrollOffset == p.cursor {
+	if cy+p.scrollOffset == p.cursor && lastKey.key == gocui.MouseLeft {
 		if len(p.filteredContent) > 0 {
 			p.selectItem(p.filteredContent[p.cursor])
 		}

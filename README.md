@@ -38,5 +38,5 @@ An example can be found in `hosts-example.yaml`
     - [ ] Advanced VIM emulation
 - [ ] Highlight current table based on query
 - [ ] Help panes like lazygit
-- [ ] Searching in panes (databases, tables, results, ...)
+- [ ] Searching in panes (~databases~, ~tables~, results, ...)
 
