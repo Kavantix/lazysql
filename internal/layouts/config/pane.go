@@ -97,13 +97,21 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		c.selectDbTypeTextBox()
 		return nil
 	})
+	g.SetKeybinding(c.hostsPane.Name, gocui.KeyTab, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.selectDbTypeTextBox()
+		return nil
+	})
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlK, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		c.selectConnect()
 		return nil
 	})
+	g.SetKeybinding(c.hostsPane.Name, gocui.KeyBacktab, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		c.selectConnect()
+		return nil
+	})
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		host := c.hostsPane.Selected
-		c.onConnect(*host)
+		c.hostsPane.SelectUnderCursor()
+		c.onConnect(*c.hostsPane.Selected)
 		return nil
 	})
 	g.SetKeybinding(c.hostsPane.Name, 'q', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {

@@ -110,7 +110,7 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 	keybindings := []keybinding{
 		{ch: 'j', fn: p.onCursorDown},
 		{ch: 'k', fn: p.onCursorUp},
-		{key: gocui.KeySpace, fn: p.onSpace},
+		{key: gocui.KeySpace, fn: p.SelectUnderCursor},
 		{key: gocui.KeyArrowDown, fn: p.onCursorDown},
 		{key: gocui.KeyArrowUp, fn: p.onCursorUp},
 		{key: gocui.MouseWheelUp, fn: p.onCursorUp},
@@ -223,6 +223,10 @@ func (p *Pane[T]) toBottom() {
 	p.SetCursor(len(p.content))
 }
 
+func (p *Pane[T]) IsCursorOnSelection() bool {
+	return len(p.filteredContent) > 0 && p.filteredContent[p.cursor].EqualsPaneable(p.Selected)
+}
+
 func (p *Pane[T]) onMouseLeft() {
 	lastKey := p.lastKey()
 	p.Select()
@@ -277,7 +281,7 @@ func (p *Pane[T]) SetContent(content []T) {
 	p.cursor = p.limitCursor(p.cursor)
 }
 
-func (p *Pane[T]) onSpace() {
+func (p *Pane[T]) SelectUnderCursor() {
 	if p.onSelectItem == nil || len(p.filteredContent) == 0 {
 		return
 	}
