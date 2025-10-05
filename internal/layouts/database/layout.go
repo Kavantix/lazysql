@@ -43,7 +43,7 @@ func (t PaneableTable) String() string {
 
 func (t PaneableTable) EqualsPaneable(other gui.Paneable) bool {
 	otherTable, ok := other.(PaneableTable)
-	return ok && t.EqualsTable(otherTable)
+	return ok && t.EqualsTable(otherTable.Table)
 }
 
 func Show(baseContext baseContext, db database.Driver, databases []database.Database) {
