@@ -19,10 +19,11 @@ type databaseContext struct {
 	selectedDatabase database.Database
 	selectedTable    database.Table
 
-	databasesPane, tablesPane, queryPane *gui.Pane[gui.PaneableString]
-	resultsPane                          *ResultsPane
-	historyPane                          *HistoryPane
-	queryEditor                          *QueryEditor
+	tablesPane               *gui.Pane[PaneableTable]
+	databasesPane, queryPane *gui.Pane[gui.PaneableString]
+	resultsPane              *ResultsPane
+	historyPane              *HistoryPane
+	queryEditor              *QueryEditor
 }
 
 type baseContext interface {
@@ -30,6 +31,19 @@ type baseContext interface {
 	LayoutPopupView()
 	InitPopupView()
 	ShowConfigLayout()
+}
+
+type PaneableTable struct {
+	database.Table
+}
+
+func (t PaneableTable) String() string {
+	return t.DisplayString()
+}
+
+func (t PaneableTable) EqualsPaneable(other gui.Paneable) bool {
+	otherTable, ok := other.(PaneableTable)
+	return ok && t.EqualsTable(otherTable)
 }
 
 func Show(baseContext baseContext, db database.Driver, databases []database.Database) {
@@ -83,7 +97,7 @@ func Show(baseContext baseContext, db database.Driver, databases []database.Data
 	context.queryEditor, err = NewQueryEditor(g, context)
 	checkErr(err)
 
-	context.tablesPane = gui.NewPane[gui.PaneableString](g, "Tables")
+	context.tablesPane = gui.NewPane[PaneableTable](g, "Tables")
 	context.tablesPane.OnSelectItem(context.onSelectTable)
 }
 
@@ -191,10 +205,9 @@ func (context *databaseContext) changeDatabase(g *gocui.Gui, dbname database.Dat
 			g.UpdateAsync(func(g *gocui.Gui) error {
 				context.tablesPane.SetCursor(0)
 				context.tablesPane.Select()
-				tableNames := database.TableNames(newTables)
-				tables := make([]gui.PaneableString, len(tableNames))
-				for i, table := range tableNames {
-					tables[i] = gui.PaneableString(table)
+				tables := make([]PaneableTable, len(newTables))
+				for i, table := range newTables {
+					tables[i] = PaneableTable{table}
 				}
 				context.tablesPane.SetContent(tables)
 				return nil
@@ -203,17 +216,17 @@ func (context *databaseContext) changeDatabase(g *gocui.Gui, dbname database.Dat
 	}
 }
 
-func (context *databaseContext) onSelectTable(table gui.PaneableString) {
-	context.changeTable(context.Gui(), database.Table(table))
+func (context *databaseContext) onSelectTable(table PaneableTable) {
+	context.changeTable(&table.Table)
 }
 
-func (context *databaseContext) changeTable(g *gocui.Gui, table database.Table) {
-	if table == "" {
+func (context *databaseContext) changeTable(table *database.Table) {
+	if table == nil {
 		return
 	}
-	if context.selectedTable != table {
-		context.selectedTable = table
-		query := context.db.QueryForTable(table, 9999)
+	if context.selectedTable != *table {
+		context.selectedTable = *table
+		query := context.db.QueryForTable(*table, 9999)
 		context.queryEditor.query = string(query)
 		context.executeQuery(query, false)
 	}

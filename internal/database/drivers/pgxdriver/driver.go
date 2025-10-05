@@ -11,23 +11,49 @@ import (
 )
 
 var _ database.Driver = &pgxDriver{}
+var _ database.Table = pgxTable{}
 
 type pgxDriver struct {
 	database.BaseDriver
 	config pgx.ConnConfig
 }
 
+type pgxTable struct {
+	schema        string
+	name          string
+	longestSchema string
+}
+
+// EqualsTable implements database.Table.
+func (t pgxTable) EqualsTable(other database.Table) bool {
+	otherTable, ok := other.(pgxTable)
+	return ok && t == otherTable
+}
+
+func (t pgxTable) DisplayString() string {
+	builder := strings.Builder{}
+	if t.schema != "public" {
+		builder.WriteString(t.schema)
+		for i := len(t.schema); i < len(t.longestSchema); i++ {
+			builder.WriteByte(' ')
+		}
+		builder.WriteString(" | ")
+	}
+	builder.WriteString(t.name)
+	return builder.String()
+}
+
 // QueryForTable implements Driver.
-func (m *pgxDriver) QueryForTable(table database.Table, limit int) database.Query {
-	parts := strings.SplitN(string(table), ".", 2)
+func (m *pgxDriver) QueryForTable(dbTable database.Table, limit int) database.Query {
+	table := dbTable.(pgxTable)
 	prefix := strings.Builder{}
-	if parts[0] != "public" {
+	if table.schema != "public" {
 		prefix.WriteByte('"')
-		prefix.WriteString(parts[0])
+		prefix.WriteString(table.schema)
 		prefix.WriteByte('"')
 		prefix.WriteByte('.')
 	}
-	return database.Query(fmt.Sprintf("SELECT *\nFROM %s\"%s\"\nLIMIT %d", prefix.String(), parts[1], limit))
+	return database.Query(fmt.Sprintf("SELECT *\nFROM %s\"%s\"\nLIMIT %d", prefix.String(), table.name, limit))
 }
 
 func NewPgxDriver(dsn database.Dsn) (database.Driver, error) {
@@ -87,23 +113,34 @@ func (m *pgxDriver) Tables() ([]database.Table, error) {
 	if m.config.Database == "" {
 		return nil, errors.New("no database selected")
 	}
-	tables := []database.Table{}
+	var result []database.Table
+	tables := []pgxTable{}
 	whereClause := "where schemaname not in ('pg_catalog', 'information_schema')"
 	if m.config.Database == "postgres" {
 		whereClause = ""
 	}
-	rows, err := m.Db.Query(fmt.Sprintf("SELECT schemaname || '.' || tablename FROM pg_catalog.pg_tables %s order by schemaname, tablename", whereClause))
+	rows, err := m.Db.Query(fmt.Sprintf("SELECT schemaname, tablename FROM pg_catalog.pg_tables %s order by schemaname = 'public' desc, schemaname, tablename", whereClause))
 	if err != nil {
-		return tables, err
+		return result, err
 	}
 	index := 0
+	longestSchema := ""
 	for rows.Next() {
-		tables = append(tables, "")
-		err := rows.Scan(&tables[index])
+		table := pgxTable{}
+		err := rows.Scan(&table.schema, &table.name)
 		if err != nil {
-			return tables, err
+			return result, err
 		}
+		if len(table.schema) > len(longestSchema) {
+			longestSchema = table.schema
+		}
+		tables = append(tables, table)
 		index += 1
 	}
-	return tables, nil
+	result = make([]database.Table, len(tables))
+	for i, table := range tables {
+		table.longestSchema = longestSchema
+		result[i] = table
+	}
+	return result, nil
 }

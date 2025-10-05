@@ -21,7 +21,10 @@ type QueryResult struct {
 
 type Query string
 type Database string
-type Table string
+type Table interface {
+	DisplayString() string
+	EqualsTable(other Table) bool
+}
 
 type Driver interface {
 	// Databases queries the connected instance for which databases exist
@@ -68,11 +71,6 @@ func (b *BaseDriver) CurrentQuery() Query {
 // DatabaseNames converts a slice of Database to their names
 func DatabaseNames(databases []Database) []string {
 	return *(*[]string)(unsafe.Pointer(&databases))
-}
-
-// TableNames converts a slice of Table to their names
-func TableNames(tables []Table) []string {
-	return *(*[]string)(unsafe.Pointer(&tables))
 }
 
 func (b *BaseDriver) Close() error {

@@ -17,6 +17,18 @@ type mysqlDriver struct {
 	config *mysql.Config
 }
 
+type mysqlTable string
+
+// EqualsTable implements database.Table.
+func (t mysqlTable) EqualsTable(other database.Table) bool {
+	otherTable, ok := other.(mysqlTable)
+	return ok && t == otherTable
+}
+
+func (t mysqlTable) DisplayString() string {
+	return string(t)
+}
+
 // QueryForTable implements Driver.
 func (m *mysqlDriver) QueryForTable(table database.Table, limit int) database.Query {
 	return database.Query(fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT %d", table, limit))
@@ -94,7 +106,7 @@ func (m *mysqlDriver) Tables() ([]database.Table, error) {
 	}
 	index := 0
 	for rows.Next() {
-		tables = append(tables, "")
+		tables = append(tables, mysqlTable(""))
 		err := rows.Scan(&tables[index])
 		if err != nil {
 			return tables, err
