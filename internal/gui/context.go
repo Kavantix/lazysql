@@ -1,6 +1,8 @@
 package gui
 
 import (
+	"time"
+
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/awesome-gocui/gocui"
 )
@@ -18,6 +20,13 @@ type Context interface {
 	ShowError(message string)
 	ShowSuccess(message string)
 	ShowPopup(title, message string, color gocui.Attribute)
+	LastLogLine() string
+	Logs() []LogEntry
+}
+
+type LogEntry struct {
+	Line string
+	At   time.Time
 }
 
 type DatabaseContext interface {

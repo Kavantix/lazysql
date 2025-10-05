@@ -115,7 +115,12 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		if c.hostsPane.Selected.Name == newHostName {
 			c.selectDbTypeTextBox()
 		} else {
-			c.onConnect(*c.hostsPane.Selected)
+			host, err := c.hostFromTextBoxes()
+			if err != nil {
+				c.context.HandleError(err)
+				return nil
+			}
+			c.onConnect(host)
 		}
 		return nil
 	})
@@ -270,11 +275,16 @@ func (c *ConfigPane) changeHost(host *Host) {
 func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
-	_, err := g.SetView(c.name, 3, 2, maxX-4, maxY-3, 0)
+	footerHeight, err := gui.LayoutFooter(g, c.context)
+	if err != nil {
+		return err
+	}
+
+	_, err = g.SetView(c.name, 3, 2, maxX-4, maxY-2-footerHeight, 0)
 	if err != nil {
 		panic(err)
 	}
-	start := maxY - 3 - 23 + 3
+	start := maxY - 2 - footerHeight - 23 + 3
 	c.dbTypeTextBox.Layout(6, start, 6+32, start+2)
 	c.nameTextBox.Layout(6+32+2, start, maxX-6, start+2)
 	c.hostTextBox.Layout(6, start+3, maxX-6, start+5)
@@ -282,10 +292,10 @@ func (c *ConfigPane) Layout(g *gocui.Gui) error {
 	c.userTextBox.Layout(6, start+9, maxX-6, start+11)
 	c.passwordTextBox.Layout(6, start+12, maxX-6, start+14)
 
-	c.connectButton.layout(maxX/3, maxY-6)
-	c.saveButton.layout(maxX/3*2, maxY-6)
+	c.connectButton.layout(maxX/3, maxY-5-footerHeight)
+	c.saveButton.layout(maxX/3*2, maxY-5-footerHeight)
 
-	c.hostsPane.Position(6, 4, maxX-6, maxY-3-22)
+	c.hostsPane.Position(6, 4, maxX-6, maxY-2-22-footerHeight)
 	c.hostsPane.Paint()
 
 	return nil

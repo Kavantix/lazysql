@@ -21,6 +21,7 @@ type baseContext interface {
 func Show(context baseContext) {
 	g := context.Gui()
 	configPane, err := NewConfigPane(func(host Host) {
+		context.Log(fmt.Sprintf("Connecting to %s %s:%d", host.DbType, host.Host, host.Port))
 		dsn := database.Dsn{
 			Host:     host.Host,
 			Port:     uint16(host.Port),
@@ -41,6 +42,7 @@ func Show(context baseContext) {
 			context.ShowError(err.Error())
 			return
 		}
+		context.Log(fmt.Sprintf("Connected to %s %s:%d", host.DbType, host.Host, host.Port))
 		databases, err := db.Databases()
 		if err != nil {
 			context.ShowError(err.Error())

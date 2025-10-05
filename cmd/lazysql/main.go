@@ -3,11 +3,12 @@ package main
 import (
 	goContext "context"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/Kavantix/lazysql/internal/gui"
 	"github.com/Kavantix/lazysql/internal/layouts"
 
 	"github.com/Kavantix/lazysql/internal/popup"
@@ -43,6 +44,21 @@ type mainContext struct {
 	g         *gocui.Gui
 	popupView *popup.View
 	logFile   *os.File
+	logs      []gui.LogEntry
+}
+
+// Logs implements layouts.popupContext.
+func (c *mainContext) Logs() []gui.LogEntry {
+	return c.logs
+}
+
+// LastLogLine implements layouts.popupContext.
+func (c *mainContext) LastLogLine() string {
+	if len(c.logs) == 0 {
+		return ""
+	}
+	entry := c.logs[len(c.logs)-1]
+	return entry.Line
 }
 
 func (c *mainContext) Gui() *gocui.Gui {
@@ -69,12 +85,18 @@ func (c *mainContext) HandleError(err error) bool {
 	return err != nil
 }
 
-// Log to a log.txt file
 func (c *mainContext) Log(text string) {
-	if c.logFile == nil {
-		c.logFile, _ = os.OpenFile("lazysql.log", os.O_WRONLY|os.O_TRUNC|os.O_CREATE|os.O_SYNC, fs.ModePerm)
+	// if c.logFile == nil {
+	// 	c.logFile, _ = os.OpenFile("lazysql.log", os.O_WRONLY|os.O_TRUNC|os.O_CREATE|os.O_SYNC, fs.ModePerm)
+	// }
+	// fmt.Fprintln(c.logFile, text)
+	c.logs = append(c.logs, gui.LogEntry{
+		Line: text,
+		At:   time.Now(),
+	})
+	if len(c.logs) > 2000 {
+		c.logs = c.logs[1000:]
 	}
-	fmt.Fprintln(c.logFile, text)
 }
 
 func (c *mainContext) ShowInfo(message string) {

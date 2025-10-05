@@ -56,11 +56,13 @@ func Show(baseContext baseContext, db database.Driver, databases []database.Data
 
 	g.SetManagerFunc(context.layout)
 	checkErr(g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		context.Log("Disconnecting")
 		err := db.Close()
 		if err != nil {
 			context.ShowError(err.Error())
 			return nil
 		}
+		context.Log("Disconnected")
 		context.ShowConfigLayout()
 		return nil
 	}))
@@ -104,6 +106,7 @@ func Show(baseContext baseContext, db database.Driver, databases []database.Data
 }
 
 func (c *databaseContext) ExecuteQuery(query database.Query) {
+	c.Log("Executing query")
 	c.executeQuery(query, true)
 }
 
@@ -134,19 +137,15 @@ func (c *databaseContext) SelectTablesPane() {
 
 func (context *databaseContext) layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-
-	if footerView, err := g.SetView("Footer", -1, maxY-2, maxY, maxX, 0); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		footerView.Frame = false
-		footerView.WriteString("Footer")
+	footerHeight, err := gui.LayoutFooter(g, context)
+	if err != nil {
+		return err
 	}
 	context.databasesPane.Position(0, 0, maxX/3-1, 9)
 	context.databasesPane.Paint()
 	context.tablesPane.Position(0, 10, maxX/3-1, 10+(maxY-10-2)/2-1)
 	context.tablesPane.Paint()
-	context.historyPane.Position(0, 10+(maxY-10-2)/2, maxX/3-1, maxY-2)
+	context.historyPane.Position(0, 10+(maxY-10-2)/2, maxX/3-1, maxY-1-footerHeight)
 	context.historyPane.Paint()
 	context.resultsPane.Position(maxX/3, 7, maxX-1, maxY-2)
 	context.resultsPane.Paint()
@@ -172,12 +171,6 @@ func (context *databaseContext) layout(g *gocui.Gui) error {
 	}
 
 	context.LayoutPopupView()
-	if footerView, err := g.View("Footer"); err == nil {
-		footerView.Clear()
-		if len(gocui.EventLog) > 0 {
-			footerView.WriteString(gocui.EventLog[len(gocui.EventLog)-1])
-		}
-	}
 	return nil
 }
 
@@ -219,16 +212,17 @@ func (context *databaseContext) changeDatabase(g *gocui.Gui, dbname database.Dat
 }
 
 func (context *databaseContext) onSelectTable(table PaneableTable) {
-	context.changeTable(&table.Table)
+	context.changeTable(table.Table)
 }
 
-func (context *databaseContext) changeTable(table *database.Table) {
+func (context *databaseContext) changeTable(table database.Table) {
 	if table == nil {
 		return
 	}
-	if context.selectedTable != *table {
-		context.selectedTable = *table
-		query := context.db.QueryForTable(*table, 9999)
+	context.Log(fmt.Sprintf("Selecting data for table %s", table.DisplayString()))
+	if context.selectedTable != table {
+		context.selectedTable = table
+		query := context.db.QueryForTable(table, 9999)
 		context.queryEditor.query = string(query)
 		context.executeQuery(query, false)
 	}
