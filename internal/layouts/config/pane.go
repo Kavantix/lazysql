@@ -91,6 +91,8 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 				c.selectDbTypeTextBox()
 			}
 		})
+		c.hostsPane.SelectWhenMovingCursor = true
+		c.hostsPane.LoopAround = true
 	}
 
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyCtrlJ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
@@ -110,20 +112,23 @@ func (c *ConfigPane) Init(g *gocui.Gui) error {
 		return nil
 	})
 	g.SetKeybinding(c.hostsPane.Name, gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		c.hostsPane.SelectUnderCursor()
-		c.onConnect(*c.hostsPane.Selected)
+		if c.hostsPane.Selected.Name == newHostName {
+			c.selectDbTypeTextBox()
+		} else {
+			c.onConnect(*c.hostsPane.Selected)
+		}
 		return nil
 	})
 	g.SetKeybinding(c.hostsPane.Name, 'q', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		return gocui.ErrQuit
 	})
 
-	c.dbTypeTextBox, _ = newTextBox(g, "Type (postgresql, mysql)", "postgresql", false, c.selectHostsPane, c.selectNameTextbox)
-	c.nameTextBox, _ = newTextBox(g, "Name", "", false, c.selectDbTypeTextBox, c.selectHostTextbox)
-	c.hostTextBox, _ = newTextBox(g, "Host", "", false, c.selectNameTextbox, c.selectPort)
-	c.portTextBox, _ = newTextBox(g, "Port", "", false, c.selectHostTextbox, c.selectUser)
-	c.userTextBox, _ = newTextBox(g, "Username", "", false, c.selectPort, c.selectPassword)
-	c.passwordTextBox, _ = newTextBox(g, "Password", "", true, c.selectUser, c.selectConnect)
+	c.dbTypeTextBox, _ = newTextBox(g, "Type (postgresql, mysql)", "postgresql", false, c.selectHostsPane, c.selectNameTextbox, c.selectHostsPane)
+	c.nameTextBox, _ = newTextBox(g, "Name", "", false, c.selectDbTypeTextBox, c.selectHostTextbox, c.selectHostsPane)
+	c.hostTextBox, _ = newTextBox(g, "Host", "", false, c.selectNameTextbox, c.selectPort, c.selectHostsPane)
+	c.portTextBox, _ = newTextBox(g, "Port", "", false, c.selectHostTextbox, c.selectUser, c.selectHostsPane)
+	c.userTextBox, _ = newTextBox(g, "Username", "", false, c.selectPort, c.selectPassword, c.selectHostsPane)
+	c.passwordTextBox, _ = newTextBox(g, "Password", "", true, c.selectUser, c.selectConnect, c.selectHostsPane)
 
 	c.connectButton, _ = newButton(g, "Connect",
 		c.selectPassword,

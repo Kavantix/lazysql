@@ -17,7 +17,7 @@ type textBox struct {
 	obscured       bool
 }
 
-func newTextBox(g *gocui.Gui, name, initialValue string, obscured bool, previous, next func()) (*textBox, error) {
+func newTextBox(g *gocui.Gui, name, initialValue string, obscured bool, previous, next, escape func()) (*textBox, error) {
 	textBox := &textBox{
 		Name:     "__TextBox__ " + name,
 		g:        g,
@@ -37,6 +37,10 @@ func newTextBox(g *gocui.Gui, name, initialValue string, obscured bool, previous
 	textBox.view.Editable = true
 	g.SetKeybinding(textBox.Name, gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		g.SetCurrentView(textBox.Name)
+		return nil
+	})
+	g.SetKeybinding(textBox.Name, gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		escape()
 		return nil
 	})
 	return textBox, nil

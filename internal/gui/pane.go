@@ -11,17 +11,19 @@ import (
 )
 
 type Pane[T Paneable] struct {
-	Name            string
-	cursor          int
-	scrollOffset    int
-	Selected        T
-	content         []T
-	filteredContent []T
-	View            *gocui.View
-	g               *gocui.Gui
-	onSelectItem    func(item T)
-	filter          string
-	_lastKey        struct {
+	Name                   string
+	cursor                 int
+	scrollOffset           int
+	Selected               T
+	SelectWhenMovingCursor bool
+	LoopAround             bool
+	_content               []T
+	filteredContent        []T
+	View                   *gocui.View
+	g                      *gocui.Gui
+	onSelectItem           func(item T)
+	filter                 string
+	_lastKey               struct {
 		ch    rune
 		key   gocui.Key
 		setAt time.Time
@@ -102,7 +104,7 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 		Name:         name,
 		cursor:       0,
 		scrollOffset: 0,
-		content:      make([]T, 0),
+		_content:     make([]T, 0),
 		View:         view,
 		g:            g,
 	}
@@ -110,7 +112,7 @@ func NewPane[T Paneable](g *gocui.Gui, name string) *Pane[T] {
 	keybindings := []keybinding{
 		{ch: 'j', fn: p.onCursorDown},
 		{ch: 'k', fn: p.onCursorUp},
-		{key: gocui.KeySpace, fn: p.SelectUnderCursor},
+		{key: gocui.KeySpace, fn: p.selectUnderCursor},
 		{key: gocui.KeyArrowDown, fn: p.onCursorDown},
 		{key: gocui.KeyArrowUp, fn: p.onCursorUp},
 		{key: gocui.MouseWheelUp, fn: p.onCursorUp},
@@ -180,7 +182,7 @@ func (p *Pane[T]) applyFilter(newFilter string) {
 		p.View.Title = fmt.Sprintf("%s /%s", p.Name, newFilter)
 		p.filteredContent = []T{}
 		parts := strings.Split(newFilter, " ")
-		for _, content := range p.content {
+		for _, content := range p._content {
 			all := true
 			for _, part := range parts {
 				if part == "" {
@@ -195,11 +197,11 @@ func (p *Pane[T]) applyFilter(newFilter string) {
 				p.filteredContent = append(p.filteredContent, content)
 			}
 		}
-		p.limitCursor(p.cursor)
+		p.SetCursor(p.cursor)
 	} else {
 		p.View.Title = p.Name
-		p.filteredContent = p.content
-		p.limitCursor(p.cursor)
+		p.filteredContent = p._content
+		p.SetCursor(p.cursor)
 	}
 }
 
@@ -220,7 +222,7 @@ func (p *Pane[T]) toTop() {
 }
 
 func (p *Pane[T]) toBottom() {
-	p.SetCursor(len(p.content))
+	p.SetCursor(len(p.filteredContent))
 }
 
 func (p *Pane[T]) IsCursorOnSelection() bool {
@@ -231,17 +233,27 @@ func (p *Pane[T]) onMouseLeft() {
 	lastKey := p.lastKey()
 	p.Select()
 	_, cy := p.View.Cursor()
-	if cy+p.scrollOffset == p.cursor && lastKey.key == gocui.MouseLeft {
-		if len(p.filteredContent) > 0 {
-			p.selectItem(p.filteredContent[p.cursor])
+	if cy+p.scrollOffset == p.cursor {
+		if lastKey.key == gocui.MouseLeft {
+			p.selectUnderCursor()
 		}
 	} else {
-		p.SetCursor(cy + p.scrollOffset)
+		newCursor := cy + p.scrollOffset
+		if newCursor >= 0 && newCursor < len(p.filteredContent) {
+			p.SetCursor(newCursor)
+		}
 	}
 }
 
 func (p *Pane[T]) SetCursor(cursor int) {
+	oldCursor := p.cursor
 	p.cursor = p.limitCursor(cursor)
+	if oldCursor == p.cursor {
+		return
+	}
+	if p.SelectWhenMovingCursor {
+		p.selectUnderCursor()
+	}
 }
 
 func (p *Pane[T]) limitCursor(cursor int) (newCursor int) {
@@ -268,20 +280,28 @@ func (p *Pane[T]) limitCursor(cursor int) (newCursor int) {
 
 func (p *Pane[T]) onCursorDown() {
 	p.Select()
-	p.cursor = p.limitCursor(p.cursor + 1)
+	if p.LoopAround && p.cursor == len(p.filteredContent)-1 {
+		p.SetCursor(0)
+	} else {
+		p.SetCursor(p.cursor + 1)
+	}
 }
 func (p *Pane[T]) onCursorUp() {
 	p.Select()
-	p.cursor = p.limitCursor(p.cursor - 1)
+	if p.LoopAround && p.cursor == 0 {
+		p.SetCursor(len(p.filteredContent) - 1)
+	} else {
+		p.SetCursor(p.cursor - 1)
+	}
 }
 
 func (p *Pane[T]) SetContent(content []T) {
-	p.content = content
+	p._content = content
 	p.filteredContent = content
-	p.cursor = p.limitCursor(p.cursor)
+	p.SetCursor(p.cursor)
 }
 
-func (p *Pane[T]) SelectUnderCursor() {
+func (p *Pane[T]) selectUnderCursor() {
 	if p.onSelectItem == nil || len(p.filteredContent) == 0 {
 		return
 	}
