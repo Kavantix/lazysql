@@ -2,4 +2,5 @@
 log.txt
 config.yaml
 lazysql
+!cmd/lazysql
 lazysql.log

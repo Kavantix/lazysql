@@ -88,6 +88,10 @@ func Show(baseContext baseContext, db database.Driver, databases []database.Data
 }
 
 func (c *databaseContext) ExecuteQuery(query database.Query) {
+	c.executeQuery(query, true)
+}
+
+func (c *databaseContext) executeQuery(query database.Query, saveHistory bool) {
 	go func() {
 		c.resultsPane.View.HasLoader = true
 		c.resultsPane.Clear()
@@ -96,7 +100,9 @@ func (c *databaseContext) ExecuteQuery(query database.Query) {
 		if err != nil {
 			c.ShowError(err.Error())
 		} else {
-			c.historyPane.AddQuery(query)
+			if saveHistory {
+				c.historyPane.AddQuery(query)
+			}
 			c.resultsPane.SetContent(result.Columns, result.Data)
 		}
 	}()
@@ -207,19 +213,9 @@ func (context *databaseContext) changeTable(g *gocui.Gui, table database.Table) 
 	}
 	if context.selectedTable != table {
 		context.selectedTable = table
-		query := fmt.Sprintf("SELECT *\nFROM `%s`\nLIMIT 9999", context.selectedTable)
-		context.queryEditor.query = query
-		go func() {
-			context.resultsPane.View.HasLoader = true
-			context.resultsPane.Clear()
-			result, err := context.db.Query(database.Query(query))
-			context.resultsPane.View.HasLoader = false
-			if err != nil {
-				context.ShowError(err.Error())
-			} else {
-				context.resultsPane.SetContent(result.Columns, result.Data)
-			}
-		}()
+		query := context.db.QueryForTable(table, 9999)
+		context.queryEditor.query = string(query)
+		context.executeQuery(query, false)
 	}
 }
 

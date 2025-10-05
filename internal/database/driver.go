@@ -9,7 +9,8 @@ import (
 )
 
 type Dsn struct {
-	Host, Port     string
+	Host           string
+	Port           uint16
 	User, Password string
 }
 
@@ -35,6 +36,10 @@ type Driver interface {
 	// A database needs to be selected already using SelectDatabase
 	Tables() ([]Table, error)
 
+	// QueryForTable returns the initial select query for table
+	// The given limit will be added to the select
+	QueryForTable(table Table, limit int) Query
+
 	// Query executes a query on the database
 	// Returns an error if the query failed or was cancelled
 	Query(query Query) (*QueryResult, error)
@@ -47,7 +52,8 @@ type Driver interface {
 	Close() error
 }
 
-type baseDriver struct {
+// BaseDriver implements basics of a Driver that is most likely to be common
+type BaseDriver struct {
 	currentQuery Query
 	Db           *sql.DB
 	context      context.Context
@@ -55,7 +61,7 @@ type baseDriver struct {
 	queryMutex   sync.Mutex
 }
 
-func (b *baseDriver) CurrentQuery() Query {
+func (b *BaseDriver) CurrentQuery() Query {
 	return b.currentQuery
 }
 
@@ -69,12 +75,12 @@ func TableNames(tables []Table) []string {
 	return *(*[]string)(unsafe.Pointer(&tables))
 }
 
-func (b *baseDriver) Close() error {
+func (b *BaseDriver) Close() error {
 	b.CancelQuery()
 	return b.Db.Close()
 }
 
-func (b *baseDriver) CancelQuery() bool {
+func (b *BaseDriver) CancelQuery() bool {
 	b.queryMutex.Lock()
 	defer b.queryMutex.Unlock()
 	if b.cancelFunc != nil {
@@ -85,7 +91,7 @@ func (b *baseDriver) CancelQuery() bool {
 	}
 }
 
-func (b *baseDriver) Query(query Query) (*QueryResult, error) {
+func (b *BaseDriver) Query(query Query) (*QueryResult, error) {
 	b.queryMutex.Lock()
 	if b.cancelFunc != nil {
 		b.cancelFunc()
