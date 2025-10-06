@@ -62,6 +62,7 @@ func NewQueryEditor(g *gocui.Gui, context gui.DatabaseContext) (*QueryEditor, er
 			query := q.query
 			cx, cy := v.Cursor()
 			cursor := cursorFromViewCursor(queryView, query, cx, cy)
+			oldCursor := q.cursor
 			q.cursor = cursor
 			q.selectionInitial = cursor
 			if q.mode == ModeVisual {
@@ -74,7 +75,7 @@ func NewQueryEditor(g *gocui.Gui, context gui.DatabaseContext) (*QueryEditor, er
 				q.selectionInitial = q.selectionStart
 				q.cursor = max(q.selectionEnd-1, 0)
 			}
-			if time.Since(q.mouseDownAt).Milliseconds() < 500 {
+			if time.Since(q.mouseDownAt).Milliseconds() < 500 && cursor == oldCursor {
 				q.mouseDownCount += 1
 				q.mode = ModeVisual
 				if q.mouseDownCount == 2 {
