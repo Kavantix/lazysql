@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Kavantix/gocui"
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/Kavantix/lazysql/internal/gui"
-	"github.com/awesome-gocui/gocui"
 )
 
 type HistoryPane struct {

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Kavantix/gocui"
 	"github.com/Kavantix/lazysql/internal/gui"
-	"github.com/awesome-gocui/gocui"
 )
 
 const newHostName = "  << New host >>  "

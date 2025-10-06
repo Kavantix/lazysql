@@ -5,10 +5,10 @@ import (
 	"log"
 	"strings"
 
+	"github.com/Kavantix/gocui"
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/Kavantix/lazysql/internal/gui"
 	. "github.com/Kavantix/lazysql/internal/layouts/database/results"
-	"github.com/awesome-gocui/gocui"
 )
 
 type databaseContext struct {

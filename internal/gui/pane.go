@@ -7,7 +7,7 @@ import (
 	"time"
 	"weak"
 
-	"github.com/awesome-gocui/gocui"
+	"github.com/Kavantix/gocui"
 )
 
 type Pane[T Paneable] struct {

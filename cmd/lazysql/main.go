@@ -13,7 +13,7 @@ import (
 
 	"github.com/Kavantix/lazysql/internal/popup"
 
-	"github.com/awesome-gocui/gocui"
+	"github.com/Kavantix/gocui"
 	"github.com/joho/godotenv"
 )
 

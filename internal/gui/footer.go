@@ -3,7 +3,7 @@ package gui
 import (
 	"time"
 
-	"github.com/awesome-gocui/gocui"
+	"github.com/Kavantix/gocui"
 )
 
 var (

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Kavantix/gocui"
 	"github.com/atotto/clipboard"
-	"github.com/awesome-gocui/gocui"
 	"github.com/mattn/go-runewidth"
 )
 

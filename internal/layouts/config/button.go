@@ -1,7 +1,7 @@
 package _configLayout
 
 import (
-	"github.com/awesome-gocui/gocui"
+	"github.com/Kavantix/gocui"
 	"github.com/mattn/go-runewidth"
 )
 

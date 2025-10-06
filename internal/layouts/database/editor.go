@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Kavantix/gocui"
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/Kavantix/lazysql/internal/gui"
 	"github.com/Kavantix/lazysql/internal/highlighting"
 	"github.com/alecthomas/chroma/quick"
-	"github.com/awesome-gocui/gocui"
 )
 
 type EditMode uint8

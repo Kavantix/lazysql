@@ -3,8 +3,8 @@ package gui
 import (
 	"time"
 
+	"github.com/Kavantix/gocui"
 	"github.com/Kavantix/lazysql/internal/database"
-	"github.com/awesome-gocui/gocui"
 )
 
 type Context interface {

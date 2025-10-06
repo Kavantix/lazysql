@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Kavantix/gocui"
 	"github.com/Kavantix/lazysql/internal/database"
 	"github.com/Kavantix/lazysql/internal/database/drivers/mysqldriver"
 	"github.com/Kavantix/lazysql/internal/database/drivers/pgxdriver"
 	"github.com/Kavantix/lazysql/internal/gui"
-	"github.com/awesome-gocui/gocui"
 )
 
 type baseContext interface {
