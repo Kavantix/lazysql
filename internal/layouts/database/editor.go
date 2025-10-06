@@ -18,6 +18,7 @@ const (
 	ModeNormal EditMode = iota
 	ModeInsert
 	ModeVisual
+	ModeVisualLine
 )
 
 type queryState struct {
@@ -35,6 +36,9 @@ type QueryEditor struct {
 	mode               EditMode
 	previousCharacters []rune
 	lastKeyTime        time.Time
+	mouseDown          bool
+	mouseDownCount     int
+	mouseDownAt        time.Time
 	selectionInitial   int
 	selectionStart     int
 	selectionEnd       int
@@ -54,38 +58,111 @@ func NewQueryEditor(g *gocui.Gui, context gui.DatabaseContext) (*QueryEditor, er
 		}
 		q.view = queryView
 		if err := g.SetKeybinding("", gocui.MouseLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-			if g.CurrentView() != q.view {
-				q.Select()
-			} else {
-				query := q.query
-				cx, cy := v.Cursor()
-				lines := strings.Split(query, "\n")
-				cursor := 0
-				i := 0
-				for cy > 0 {
-					if i >= len(lines) {
-						break
-					}
-					cursor += len(lines[i]) + 1
-					i += 1
-					cy -= 1
-				}
-				cursor += cx
-				if cursor > len(query) {
-					cursor = len(query)
-				}
-				q.cursor = cursor
+			q.Select()
+			query := q.query
+			cx, cy := v.Cursor()
+			cursor := cursorFromViewCursor(queryView, query, cx, cy)
+			q.cursor = cursor
+			q.selectionInitial = cursor
+			if q.mode == ModeVisual {
+				q.selectionStart = cursor
+				q.selectionEnd = cursor
 			}
+			if q.mode == ModeVisualLine {
+				q.selectionStart = q.startOfCurrentLine()
+				q.selectionEnd = q.endOfCurrentLine() + 1
+				q.selectionInitial = q.selectionStart
+				q.cursor = max(q.selectionEnd-1, 0)
+			}
+			if time.Since(q.mouseDownAt).Milliseconds() < 500 {
+				q.mouseDownCount += 1
+				q.mode = ModeVisual
+				if q.mouseDownCount == 2 {
+					q.selectionStart = q.startOfCurrentWord()
+					q.selectionEnd = q.endOfCurrentWord() + 1
+					q.cursor = max(q.selectionEnd-1, 0)
+				}
+				if q.mouseDownCount == 3 {
+					q.mode = ModeVisualLine
+					q.selectionStart = q.startOfCurrentLine()
+					q.selectionEnd = q.endOfCurrentLine() + 1
+				}
+				if q.mouseDownCount == 4 {
+					q.selectionEnd = len(q.query) + 1
+					q.selectionStart = 0
+					q.cursor = max(q.selectionEnd-1, 0)
+				}
+				q.selectionInitial = q.selectionStart
+			} else {
+				q.mouseDownCount = 1
+			}
+			q.mouseDown = true
+			q.mouseDownAt = time.Now()
 			return nil
 		}); err != nil {
 			return nil, err
 		}
+		if err := g.SetKeybinding("", gocui.MouseRelease, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			q.mouseDown = false
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		g.SetKeybinding("", gocui.Key(0), gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+			if !q.mouseDown {
+				return nil
+			}
+			x, y := g.MousePosition()
+			query := q.query
+			vx, vy, vex, vey, _ := g.ViewPosition(queryView.Name())
+			if x < vx+1 || x > vex-1 || y < vy || y > vey {
+				return nil
+			}
+			cx := x - vx - 1
+			cy := y - vy - 1
+			queryView.SetCursor(cx, cy)
+			cursor := cursorFromViewCursor(queryView, query, cx, cy)
+			if cursor != q.cursor {
+				q.mode = ModeVisual
+			}
+			q.cursor = cursor
+			if cursor <= q.selectionInitial {
+				q.selectionStart = cursor
+				q.selectionEnd = q.selectionInitial + 1
+			} else {
+				q.selectionStart = q.selectionInitial
+				q.selectionEnd = cursor
+			}
+			return nil
+		})
 		queryView.Editor = q
 		queryView.Editable = true
 		queryView.Wrap = true
 
 	}
 	return q, nil
+}
+
+func cursorFromViewCursor(v *gocui.View, query string, cx int, cy int) int {
+	ox, oy := v.Origin()
+	cx += ox
+	cy += oy
+	lines := strings.Split(query, "\n")
+	cursor := 0
+	i := 0
+	for cy > 0 {
+		if i >= len(lines)-1 {
+			break
+		}
+		cursor += len(lines[i]) + 1
+		i += 1
+		cy -= 1
+	}
+	cursor += min(cx, len(lines[i]))
+	if cursor > len(query) {
+		cursor = len(query)
+	}
+	return cursor
 }
 
 func (q *QueryEditor) Select() {
@@ -117,7 +194,7 @@ func (q *QueryEditor) Paint() {
 		q.g.SetCursorStyle(gocui.CursorStyleBlinkingBlock)
 		highlighting.CustomFormatter.SelectionStart = 0
 		highlighting.CustomFormatter.SelectionEnd = 0
-	case ModeVisual:
+	case ModeVisual, ModeVisualLine:
 		q.g.SetCursorStyle(gocui.CursorStyleBlinkingBlock)
 		highlighting.CustomFormatter.SelectionStart = q.selectionStart
 		highlighting.CustomFormatter.SelectionEnd = q.selectionEnd
@@ -141,6 +218,8 @@ func (q *QueryEditor) ModeName() string {
 		return "Normal"
 	case ModeVisual:
 		return "Visual"
+	case ModeVisualLine:
+		return "Visual-Line"
 	default:
 		panic("QueryEditor mode is in an undefined state")
 	}
@@ -152,7 +231,7 @@ func (q *QueryEditor) Edit(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modi
 		q.EditInsert(v, key, ch, mod)
 	case ModeNormal:
 		q.EditNormal(v, key, ch, mod)
-	case ModeVisual:
+	case ModeVisual, ModeVisualLine:
 		q.EditVisual(v, key, ch, mod)
 	}
 	q.lastKeyTime = time.Now()
@@ -229,6 +308,12 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		q.context.ExecuteQuery(database.Query(q.query))
 	case ch == 'i':
 		q.mode = ModeInsert
+	case ch == 'V':
+		q.mode = ModeVisualLine
+		q.selectionStart = q.startOfCurrentLine()
+		q.cursor = q.endOfCurrentLine()
+		q.selectionEnd = q.cursor + 1
+		q.selectionInitial = q.selectionStart
 	case ch == 'v':
 		q.mode = ModeVisual
 		q.selectionStart = q.cursor
@@ -252,6 +337,10 @@ func (q *QueryEditor) EditNormal(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		q.cursor = q.nextEndOfWord()
 	case ch == 'w':
 		q.cursor = q.nextStartOfWord()
+	case ch == '0':
+		q.cursor = q.startOfCurrentLine()
+	case ch == '$':
+		q.cursor = q.endOfCurrentLine()
 	case ch == 'b':
 		q.cursor = q.previousStartOfWord()
 	case ch == 'u':
@@ -294,6 +383,10 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 	switch {
 	case key == gocui.KeyEsc:
 		q.mode = ModeNormal
+	case ch == 'V':
+		q.mode = ModeVisualLine
+	case ch == 'v':
+		q.mode = ModeVisual
 	case ch == 'h':
 		q.cursorLeft()
 	case ch == 'l':
@@ -304,6 +397,10 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		q.cursorUp(v, q.query)
 	case ch == 'e':
 		q.cursor = q.nextEndOfWord()
+	case ch == '0':
+		q.cursor = q.startOfCurrentLine()
+	case ch == '$':
+		q.cursor = q.endOfCurrentLine()
 	case ch == 'w':
 		q.cursor = q.nextStartOfWord()
 	case ch == 'b':
@@ -335,12 +432,27 @@ func (q *QueryEditor) EditVisual(v *gocui.View, key gocui.Key, ch rune, mod gocu
 		q.selectionStart = q.cursor
 	}
 
+	if q.mode == ModeVisualLine {
+		cursor := q.cursor
+		q.cursor = q.selectionStart
+		q.selectionStart = q.startOfCurrentLine()
+		q.cursor = q.selectionEnd
+		q.selectionEnd = q.endOfCurrentLine() + 1
+		q.cursor = cursor
+	}
+
 	// Check editing keys
 	newQuery := q.query
 	switch ch {
 	case 'x', 'c':
 		if q.selectionEnd > len(q.query) {
 			q.selectionEnd = len(q.query)
+		}
+		if q.selectionEnd == 0 {
+			break
+		}
+		if q.mode == ModeVisualLine && ch == 'c' && q.selectionEnd != len(q.query) {
+			q.selectionEnd -= 1
 		}
 		newQuery = q.query[:q.selectionStart] + q.query[q.selectionEnd:]
 		q.cursor = q.selectionStart
@@ -430,6 +542,8 @@ func (q *QueryEditor) insertNewlineAtCursor(query string) string {
 	return query
 }
 
+const nonWordChars = " \n,.'\""
+
 func (q *QueryEditor) startOfCurrentWord() int {
 	if len(q.query) <= 1 {
 		return 0
@@ -437,16 +551,16 @@ func (q *QueryEditor) startOfCurrentWord() int {
 	if q.cursor >= len(q.query) {
 		return len(q.query)
 	}
-	if q.query[q.cursor] == ' ' || q.query[q.cursor] == '\n' {
+	if strings.Contains(nonWordChars, string(q.query[q.cursor])) {
 		return q.cursor
 	}
 	var queryBeforeCursor string
-	if q.cursor >= len(q.query) {
+	if q.cursor >= len(q.query)-1 {
 		queryBeforeCursor = q.query
 	} else {
-		queryBeforeCursor = q.query[:q.cursor]
+		queryBeforeCursor = q.query[:q.cursor+1]
 	}
-	lastNonWord := strings.LastIndexAny(queryBeforeCursor, " \n,.'\"")
+	lastNonWord := strings.LastIndexAny(queryBeforeCursor, nonWordChars)
 	if lastNonWord < 0 {
 		return 0
 	} else {
@@ -461,11 +575,11 @@ func (q *QueryEditor) endOfCurrentWord() int {
 	if q.cursor >= len(q.query) {
 		return len(q.query)
 	}
-	if q.query[q.cursor] == ' ' || q.query[q.cursor] == '\n' {
+	if strings.Contains(nonWordChars, string(q.query[q.cursor])) {
 		return q.cursor
 	}
 	queryAfterCursor := q.query[q.cursor:]
-	firstNonWord := strings.IndexAny(queryAfterCursor, " \n,.'\"")
+	firstNonWord := strings.IndexAny(queryAfterCursor, nonWordChars)
 	if firstNonWord < 0 {
 		return len(q.query) - 1
 	} else {

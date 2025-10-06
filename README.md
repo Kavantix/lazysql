@@ -32,7 +32,7 @@ An example can be found in `hosts-example.yaml`
     - [ ] Line numbers
     - [ ] Scrolling
     - [ ] Execute query button (instead of enter in normal mode)
-    - [ ] Mouse selection
+    - [x] Mouse selection
     - [ ] Basic auto complete (keywords, tables, columns)
     - [ ] Advanced auto complete (suggestions based on existing query using chroma lexer)
     - [ ] Advanced VIM emulation
