@@ -2,6 +2,14 @@
 
 A [lazygit](https://github.com/jesseduffield/lazygit) inspired terminal sql client.
 
+## How to install
+
+Currently the only way to install lazysql is using the go toolchain:
+
+```sh
+go install github.com/Kavantix/lazysql/cmd/lazysql@main
+```
+
 ## Supported databases
 
 - [x] MySql
